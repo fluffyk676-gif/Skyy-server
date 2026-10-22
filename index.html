@@ -1,0 +1,223 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+<title>Skyy — самокаты</title>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<style>
+  /* [Стили оставляем из предыдущей версии, они не менялись. 
+     Чтобы не загромождать ответ, я вставил их сокращенно, но ты используй те же, что были] */
+  :root{--sky:#0ea5e9;--bg:#f8fafc;--panel:#fff;--ink:#0f172a;--muted:#64748b;--green:#22c55e;--red:#ef4444;--amber:#f59e0b;--shadow:0 10px 30px rgba(2,132,199,.15)}
+  body{margin:0;font-family:sans-serif;background:var(--bg);color:var(--ink);overflow:hidden}
+  #app{position:relative;height:100dvh;max-width:480px;margin:0 auto;overflow:hidden}
+  #map{position:absolute;inset:0;z-index:1;background:#eef2f7}
+  .topbar{position:absolute;top:0;left:0;right:0;z-index:500;padding:14px;display:flex;gap:8px}
+  .logo,.icon-btn{background:var(--panel);border-radius:14px;box-shadow:var(--shadow);padding:10px}
+  .logo{font-weight:800;font-size:20px}
+  .status{position:absolute;top:74px;left:14px;right:14px;z-index:490;display:flex;gap:6px}
+  .chip{background:var(--panel);border-radius:999px;padding:6px 12px;font-size:12px;font-weight:600;box-shadow:var(--shadow)}
+  .sheet{position:absolute;left:0;right:0;bottom:0;z-index:500;background:var(--panel);border-radius:24px 24px 0 0;padding:16px;box-shadow:0 -10px 40px rgba(0,0,0,.1);max-height:70vh;display:flex;flex-direction:column}
+  .scooter{display:flex;gap:12px;padding:12px;border-radius:14px;cursor:pointer;border:2px solid transparent}
+  .scooter:hover{background:#f1f5f9}
+  .btn{width:100%;padding:16px;border:none;border-radius:14px;font-weight:700;font-size:16px;cursor:pointer;margin-top:10px}
+  .btn-primary{background:var(--sky);color:#fff}
+  .btn-ghost{background:#f1f5f9;color:var(--ink)}
+  .btn-ring{background:var(--amber);color:#fff;margin-top:8px}
+  .marker{background:var(--sky);width:36px;height:36px;border-radius:50%;display:grid;place-items:center;border:3px solid #fff;box-shadow:0 4px 12px rgba(0,0,0,.2);animation:pulse 2s infinite}
+  @keyframes pulse{0%,100%{box-shadow:0 0 0 6px rgba(14,165,233,.3)}50%{box-shadow:0 0 0 12px rgba(14,165,233,.1)}}
+  .toast{position:absolute;bottom:120px;left:50%;transform:translateX(-50%);background:#000;color:#fff;padding:12px;border-radius:8px;z-index:900;opacity:0;transition:.3s}
+  .toast.show{opacity:1}
+</style>
+</head>
+<body>
+<div id="app">
+  <div id="map"></div>
+  <div class="topbar">
+    <div class="logo">Skyy</div>
+  </div>
+  <div class="status" id="statusBar"></div>
+
+  <div class="sheet" id="sheet">
+    <h2 style="margin:0 0 12px">Самокаты рядом</h2>
+    <div id="scooterList" style="overflow-y:auto;flex:1"></div>
+    <div style="color:#64748b;font-size:12px;text-align:center;margin-top:10px" id="serverStatus">Подключение к серверу...</div>
+  </div>
+
+  <!-- Модалка оплаты -->
+  <div id="paymentModal" style="display:none;position:absolute;inset:0;background:rgba(0,0,0,.7);z-index:999;align-items:center;justify-content:center;padding:20px">
+    <div style="background:#fff;padding:24px;border-radius:20px;width:100%;max-width:320px;text-align:center">
+      <h3>Оплата поездки</h3>
+      <p style="color:#64748b;font-size:14px">Перенаправляем на защищенную страницу ЮKassa...</p>
+      <div style="font-size:32px;font-weight:800;margin:20px 0" id="payAmount">0 ₽</div>
+      <button class="btn btn-primary" onclick="payWithYooKassa()">Оплатить картой</button>
+      <button class="btn btn-ghost" onclick="document.getElementById('paymentModal').style.display='none'">Отмена</button>
+    </div>
+  </div>
+
+  <div class="toast" id="toast"></div>
+</div>
+
+<script>
+const API_BASE = 'http://localhost:3000'; // ТУТ АДРЕС ТВОЕГО СЕРВЕРА
+const state = { scooters: [], userPos: [55.75, 37.61], map: null, markers: {}, selected: null, ride: null };
+
+function toast(msg){ const t=document.getElementById('toast'); t.textContent=msg; t.classList.add('show'); setTimeout(()=>t.classList.remove('show'), 3000); }
+
+// 1. Инициализация карты
+function initMap(){
+  state.map = L.map('map', {zoomControl:false}).setView(state.userPos, 15);
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(state.map);
+  navigator.geolocation.watchPosition(p => {
+    state.userPos = [p.coords.latitude, p.coords.longitude];
+    state.map.setView(state.userPos, 16);
+  });
+}
+
+// 2. Загрузка самокатов (без демо!)
+async function loadScooters(){
+  try {
+    const r = await fetch(`${API_BASE}/api/scooters`);
+    if(!r.ok) throw new Error('Нет связи');
+    const data = await r.json();
+    
+    // Очищаем старые маркеры
+    Object.values(state.markers).forEach(m => state.map.removeLayer(m));
+    state.markers = {};
+    state.scooters = data;
+
+    // Рисуем только реальные
+    data.forEach(s => {
+      const marker = L.marker([s.lat, s.lng], {
+        icon: L.divIcon({html:'<div class="marker">🛴</div>', iconSize:[36,36], iconAnchor:[18,18]})
+      }).addTo(state.map);
+      marker.on('click', () => selectScooter(s));
+      state.markers[s.id] = marker;
+    });
+
+    renderList();
+    document.getElementById('serverStatus').textContent = `Сервер онлайн. Самокатов: ${data.length}`;
+    document.getElementById('serverStatus').style.color = '#22c55e';
+  } catch(e) {
+    document.getElementById('serverStatus').textContent = 'Сервер офлайн';
+    document.getElementById('serverStatus').style.color = '#ef4444';
+    state.scooters = [];
+    renderList();
+  }
+}
+
+function renderList(){
+  const list = document.getElementById('scooterList');
+  if(state.scooters.length === 0){ list.innerHTML = '<p style="text-align:center;color:#64748b">Нет доступных самокатов</p>'; return; }
+  list.innerHTML = state.scooters.map(s => `
+    <div class="scooter" onclick="selectScooterById('${s.id}')">
+      <div style="font-size:24px">🛴</div>
+      <div style="flex:1">
+        <b>${s.id}</b>
+        <div style="font-size:12px;color:#64748b">Заряд: ${s.battery}%</div>
+      </div>
+    </div>
+  `).join('');
+}
+
+// 3. Выбор самоката
+function selectScooterById(id){ selectScooter(state.scooters.find(s => s.id === id)); }
+
+function selectScooter(s){
+  state.selected = s;
+  state.map.flyTo([s.lat, s.lng], 18);
+  
+  document.getElementById('sheet').innerHTML = `
+    <h2 style="margin:0 0 4px">${s.id}</h2>
+    <p style="color:#64748b;margin:0 0 16px">Заряд: ${s.battery}%</p>
+    <button class="btn btn-primary" onclick="startRide()">Начать поездку (30 ₽)</button>
+    <button class="btn btn-ring" onclick="ringScooter()">🔊 Прозвонить самокат</button>
+    <button class="btn btn-ghost" onclick="location.reload()">Назад к списку</button>
+  `;
+}
+
+// 4. ПРОЗВОН (Отправка команды CALL на сервер)
+async function ringScooter(){
+  if(!state.selected) return;
+  toast('Отправляем команду на прозвон...');
+  try {
+    // Отправляем команду CALL
+    await fetch(`${API_BASE}/api/scooter/${state.selected.id}/command`, {
+      method: 'POST',
+      body: 'CALL'
+    });
+    toast('Самокат звонит! Ищите звук.');
+  } catch(e) { toast('Ошибка: сервер не отвечает'); }
+}
+
+// 5. НАЧАЛО ПОЕЗДКИ
+async function startRide(){
+  if(!state.selected) return;
+  toast('Разблокировка...');
+  try {
+    await fetch(`${API_BASE}/api/scooter/${state.selected.id}/command`, { method: 'POST', body: 'START' });
+    state.ride = { id: state.selected.id, start: Date.now() };
+    document.getElementById('sheet').innerHTML = `
+      <h2 style="margin:0 0 4px">Поездка началась</h2>
+      <p style="color:#64748b">Самокат: ${state.selected.id}</p>
+      <div style="font-size:36px;font-weight:800;margin:20px 0" id="rideTimer">00:00</div>
+      <button class="btn btn-primary" onclick="endRide()">Завершить поездку</button>
+    `;
+    
+    // Таймер
+    setInterval(() => {
+      if(!state.ride) return;
+      const sec = Math.floor((Date.now() - state.ride.start) / 1000);
+      document.getElementById('rideTimer').textContent = 
+        `${String(Math.floor(sec/60)).padStart(2,'0')}:${String(sec%60).padStart(2,'0')}`;
+    }, 1000);
+  } catch(e) { toast('Ошибка разблокировки'); }
+}
+
+// 6. ЗАВЕРШЕНИЕ И ОПЛАТА (ЮKassa)
+async function endRide(){
+  if(!state.ride) return;
+  const sec = Math.floor((Date.now() - state.ride.start) / 1000);
+  const cost = 30 + Math.ceil(sec / 60) * 6; // 30р старт + 6р/мин
+  
+  // Блокируем самокат
+  await fetch(`${API_BASE}/api/scooter/${state.ride.id}/command`, { method: 'POST', body: 'STOP' }).catch(()=>{});
+  
+  state.ride = null;
+  document.getElementById('payAmount').textContent = cost + ' ₽';
+  document.getElementById('paymentModal').style.display = 'flex';
+}
+
+// 7. РЕАЛЬНАЯ ОПЛАТА ЧЕРЕЗ ЮKASSA
+async function payWithYooKassa(){
+  const amount = parseInt(document.getElementById('payAmount').textContent);
+  toast('Создаем платеж в ЮKassa...');
+  
+  try {
+    // Запрос к НАШЕМУ серверу, который создаст платеж в ЮKassa
+    const r = await fetch(`${API_BASE}/api/pay`, {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({ amount: amount, description: `Оплата поездки Skyy` })
+    });
+    const data = await r.json();
+    
+    if(data.confirmation_url){
+      // Перенаправляем пользователя на страницу оплаты ЮKassa
+      window.location.href = data.confirmation_url;
+    } else {
+      toast('Ошибка создания платежа');
+    }
+  } catch(e) {
+    toast('Ошибка соединения с платежным шлюзом');
+  }
+}
+
+// Запуск
+initMap();
+loadScooters();
+setInterval(loadScooters, 10000); // Обновляем список каждые 10 сек
+</script>
+</body>
+</html>
