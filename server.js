@@ -2,14 +2,14 @@ const express = require('express');
 const cors = require('cors');
 const axios = require('axios');
 const { v4: uuidv4 } = require('uuid');
+const path = require('path');
 
 const app = express();
 app.use(cors());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-// ===== НАСТРОЙКИ ЮKASSA =====
-// Пока оставь так. Когда зарегистрируешься в ЮKassa, вставишь свои ключи.
+// ===== КЛЮЧИ ЮKASSA (пока оставь как есть) =====
 const YOOKASSA_SHOP_ID = "ТВОЙ_SHOP_ID";
 const YOOKASSA_SECRET_KEY = "ТВОЙ_СЕКРЕТНЫЙ_КЛЮЧ";
 
@@ -63,7 +63,7 @@ app.post('/api/pay', async (req, res) => {
     const response = await axios.post('https://api.yookassa.ru/v3/payments', {
       amount: { value: `${amount}.00`, currency: "RUB" },
       capture: true,
-      confirmation: { type: "redirect", return_url: "https://example.com/success" },
+      confirmation: { type: "redirect", return_url: "https://skyy-server.onrender.com" },
       description: description
     }, {
       headers: {
@@ -82,5 +82,12 @@ app.post('/api/pay', async (req, res) => {
   }
 });
 
+// ===== РАЗДАЧА САЙТА =====
+// Отдаем index.html при заходе на главную страницу
+app.use(express.static(__dirname));
+app.get('/', (req, res) => {
+  res.sendFile(path.join(__dirname, 'index.html'));
+});
+
 const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => console.log(`Сервер запущен на порту ${PORT}`));
+app.listen(PORT, () => console.log(`Сервер и сайт запущены на порту ${PORT}`));
