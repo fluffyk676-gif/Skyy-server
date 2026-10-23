@@ -6,9 +6,6 @@
 <title>Skyy — самокаты</title>
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-<link rel="stylesheet" href="https://unpkg.com/leaflet-routing-machine@latest/dist/leaflet-routing-machine.css" />
-<script src="https://unpkg.com/leaflet-routing-machine@latest/dist/leaflet-routing-machine.js"></script>
-
 <style>
   :root{--sky:#0ea5e9;--bg:#f8fafc;--panel:#fff;--ink:#0f172a;--muted:#64748b;--green:#22c55e;--red:#ef4444;--amber:#f59e0b;--shadow:0 10px 30px rgba(2,132,199,.15)}
   body{margin:0;font-family:-apple-system,sans-serif;background:var(--bg);color:var(--ink);overflow:hidden}
@@ -49,7 +46,7 @@
   
   <div class="topbar">
     <div class="logo">Skyy</div>
-    <button class="search-btn" onclick="startSearch()">🔍 Куда поедем?</button>
+    <button class="search-btn" onclick="toast('Поиск в разработке')">🔍 Куда поедем?</button>
     <button class="icon-btn" onclick="locateMe()">📍</button>
     <button class="icon-btn" onclick="toggleSettings()">⚙️</button>
   </div>
@@ -66,8 +63,7 @@
       <h3>Поездка завершена</h3>
       <p style="color:var(--muted);font-size:14px">К оплате:</p>
       <div style="font-size:36px;font-weight:800;margin:10px 0 20px" id="payAmount">0 ₽</div>
-      <!-- Ссылка на СБП Сбера вставляется в функцию payWithYooKassa ниже -->
-      <button class="btn btn-primary" onclick="payWithYooKassa()">Оплатить по СБП</button>
+      <button class="btn btn-primary" onclick="payWithSber()">Оплатить по СБП</button>
       <button class="btn btn-ghost" onclick="closePayModal()">Позже</button>
     </div>
   </div>
@@ -86,41 +82,32 @@
 
 <script>
 const API_BASE = 'https://skyy-server.onrender.com'; 
-const state = { scooters: [], userPos: null, map: null, markers: {}, selected: null, ride: null, userMarker: null, routingControl: null };
+const state = { scooters: [], userPos: [55.75, 37.61], map: null, markers: {}, selected: null, ride: null, userMarker: null };
 
 function toast(msg){ const t=document.getElementById('toast'); t.textContent=msg; t.classList.add('show'); setTimeout(()=>t.classList.remove('show'), 3000); }
 function closePayModal(){ document.getElementById('paymentModal').style.display='none'; location.reload(); }
 function toggleSettings(){ document.getElementById('settingsModal').style.display='flex'; }
 function toggleDarkMode(){ document.body.classList.toggle('dark'); }
 
-// 1. Инициализация карты и запрос GPS
+// Инициализация карты и GPS
 function initMap(){
-  // Ставим временный центр (Москва), пока не получим GPS
-  state.map = L.map('map', {zoomControl:false}).setView([55.75, 37.61], 14);
+  state.map = L.map('map', {zoomControl:false}).setView(state.userPos, 14);
   L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(state.map);
   
+  // Включаем GPS
   if (navigator.geolocation) {
-    navigator.geolocation.getCurrentPosition(
+    navigator.geolocation.watchPosition(
       (pos) => {
         state.userPos = [pos.coords.latitude, pos.coords.longitude];
-        state.map.setView(state.userPos, 16);
-        
         if(!state.userMarker) {
           state.userMarker = L.circleMarker(state.userPos, {radius: 8, color: '#fff', weight: 3, fillColor: '#0ea5e9', fillOpacity: 1}).addTo(state.map);
+          state.map.setView(state.userPos, 16);
         } else {
           state.userMarker.setLatLng(state.userPos);
         }
-
-        // Слежение за перемещением
-        navigator.geolocation.watchPosition(p => {
-          state.userPos = [p.coords.latitude, p.coords.longitude];
-          if(state.userMarker) state.userMarker.setLatLng(state.userPos);
-        });
       },
-      (err) => {
-        toast("Разрешите геолокацию для определения позиции!");
-      },
-      { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
+      (err) => { console.log("GPS Error:", err); },
+      { enableHighAccuracy: true, maximumAge: 5000, timeout: 10000 }
     );
   }
 }
@@ -130,30 +117,7 @@ function locateMe(){
   else toast("Ожидание GPS...");
 }
 
-// 2. Построение маршрута
-function startSearch(){
-  if(state.scooters.length === 0){ toast('Нет самокатов для поиска'); return; }
-  if(!state.userPos) { toast('Ждем ваш GPS...'); return; }
-  
-  const target = state.scooters[0];
-  
-  if(state.routingControl) state.map.removeControl(state.routingControl);
-
-  state.routingControl = L.Routing.control({
-    waypoints: [
-      L.latLng(state.userPos[0], state.userPos[1]),
-      L.latLng(target.lat, target.lng)
-    ],
-    language: 'ru',
-    show: false,
-    lineOptions: { styles: [{color: '#0ea5e9', weight: 6}] },
-    createMarker: function() { return null; }
-  }).addTo(state.map);
-  
-  toast(`Маршрут до ${target.id}`);
-}
-
-// 3. Загрузка самокатов
+// Загрузка самокатов
 async function loadScooters(){
   try {
     const r = await fetch(`${API_BASE}/api/scooters`);
@@ -244,20 +208,16 @@ async function endRide(){
   document.getElementById('paymentModal').style.display = 'flex';
 }
 
-// 4. ОПЛАТА (Сбер/СБП)
-function payWithYooKassa(){
-  const amount = parseInt(document.getElementById('payAmount').textContent);
-  
+// Оплата Сбер
+function payWithSber(){
   // ВСТАВЬ СЮДА СВОЮ ССЫЛКУ ИЗ СБЕРА!
   const sberLink = "https://online.sberbank.ru/CSAFront/api/..."; 
-  
   window.open(sberLink, '_blank');
   document.getElementById('paymentModal').style.display = 'none';
-  toast('Ожидаем оплату по СБП...');
+  toast('Ожидаем оплату...');
   setTimeout(() => { location.reload(); }, 2000);
 }
 
-// Запуск
 initMap();
 loadScooters();
 setInterval(loadScooters, 5000);
