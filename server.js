@@ -10,19 +10,25 @@ app.use(express.urlencoded({ extended: true }));
 const scooters = {};
 const commandQueue = {};
 
+// Очистка старых самокатов (чтобы не было фантомов)
+setInterval(() => {
+  const now = Date.now();
+  for (let id in scooters) {
+    if (now - scooters[id].lastSeen > 2 * 60 * 1000) { // Если нет связи 2 минуты
+      delete scooters[id];
+      console.log(`[Очистка] Удален ${id}`);
+    }
+  }
+}, 60000);
+
 // Прием координат
 app.post('/api/scooter/location', (req, res) => {
   const { id, lat, lon, battery, lock } = req.body;
   if (id && lat && lon) {
     scooters[id] = { 
-      id, 
-      lat: parseFloat(lat), 
-      lng: parseFloat(lon), 
-      battery: parseInt(battery) || 100, 
-      lock: lock === '1', 
-      lastSeen: Date.now() 
+      id, lat: parseFloat(lat), lng: parseFloat(lon), 
+      battery: parseInt(battery) || 100, lock: lock === '1', lastSeen: Date.now() 
     };
-    console.log(`[GPS] ${id}: ${lat}, ${lon}`);
   }
   res.send('OK');
 });
@@ -32,24 +38,20 @@ app.get('/api/scooters', (req, res) => {
   res.json(Object.values(scooters));
 });
 
-// Прием команд
-app.post('/api/scooter/:id/command', (req, res) => {
+// Прием команд (работает и через POST, и через GET-ссылку)
+app.all('/api/scooter/:id/command', (req, res) => {
   const id = req.params.id;
-  const cmd = req.body.toString().toUpperCase() || req.body;
-  commandQueue[id] = cmd;
-  console.log(`[CMD] ${id}: ${cmd}`);
+  let cmd = req.body.toString().toUpperCase() || req.body;
+  if (req.query.cmd) cmd = req.query.cmd.toUpperCase();
+
+  if (cmd) {
+    commandQueue[id] = cmd;
+    console.log(`[CMD] Для ${id}: ${cmd}`);
+  }
   res.send('OK');
 });
 
-// Выдача команд
-app.get('/api/scooter/:id/command', (req, res) => {
-  const id = req.params.id;
-  const cmd = commandQueue[id];
-  delete commandQueue[id];
-  res.send(cmd || '');
-});
-
-// СТРАНИЦА ТРЕКЕРА ДЛЯ IPAD
+// Страница Трекера
 app.get('/tracker.html', (req, res) => {
   res.send(`
     <!DOCTYPE html>
@@ -63,7 +65,7 @@ app.get('/tracker.html', (req, res) => {
       </style>
     </head>
     <body id="body" onclick="unlockAudio()">
-      <h2 style="color:#0ea5e9;" id="title">Skyy Tracker</h2>
+      <h2 style="color:#0ea5e9;" id="title">Skyy Tracker (iPad)</h2>
       <p id="gpsStatus" style="font-size:20px;font-weight:bold;color:#f59e0b;">Ожидание GPS...</p>
       <p id="cmdStatus" style="font-size:18px;color:#64748b;margin-top:20px;">Проверка команд...</p>
       
@@ -72,7 +74,6 @@ app.get('/tracker.html', (req, res) => {
         const ID = 'Skyy-iPad';
         let audioCtx = null;
 
-        // Разблокировка звука при клике (требование Safari)
         function unlockAudio() {
           if (!audioCtx) {
             audioCtx = new (window.AudioContext || window.webkitAudioContext)();
@@ -81,7 +82,6 @@ app.get('/tracker.html', (req, res) => {
           }
         }
 
-        // Отправка GPS
         function sendLocation() {
           navigator.geolocation.getCurrentPosition(
             (pos) => {
@@ -103,15 +103,12 @@ app.get('/tracker.html', (req, res) => {
         setInterval(sendLocation, 5000);
         sendLocation();
 
-        // Проверка команд
         function checkCommands() {
           fetch(API + '/api/scooter/' + ID + '/command')
             .then(r => r.text())
             .then(cmd => {
               if (cmd === 'CALL') {
                 document.getElementById('cmdStatus').innerText = 'СИРЕНА! 🔔';
-                document.getElementById('cmdStatus').style.color = '#fff';
-                
                 document.getElementById('body').classList.add('alarm');
                 setTimeout(() => document.getElementById('body').classList.remove('alarm'), 3000);
                 
