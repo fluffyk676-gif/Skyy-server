@@ -9,44 +9,30 @@ app.use(cors());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-// ===== КЛЮЧИ ЮKASSA (пока оставь как есть) =====
+// ===== ВСТАВЬ СЮДА СВОИ КЛЮЧИ ЮKASSA =====
 const YOOKASSA_SHOP_ID = "ТВОЙ_SHOP_ID";
 const YOOKASSA_SECRET_KEY = "ТВОЙ_СЕКРЕТНЫЙ_КЛЮЧ";
 
-// ===== БАЗА ДАННЫХ =====
 const scooters = {};
 const commandQueue = {};
 
-// 1. Прием координат от самокатов (Meizu/Arduino)
 app.post('/api/scooter/location', (req, res) => {
   const { id, lat, lon, battery, lock } = req.body;
-  scooters[id] = { 
-    id, 
-    lat: parseFloat(lat), 
-    lng: parseFloat(lon), 
-    battery: parseInt(battery) || 100, 
-    lock: lock === '1',
-    lastSeen: Date.now()
-  };
-  console.log(`[GPS] ${id}: ${lat}, ${lon}`);
+  scooters[id] = { id, lat: parseFloat(lat), lng: parseFloat(lon), battery: parseInt(battery) || 100, lock: lock === '1', lastSeen: Date.now() };
   res.send('OK');
 });
 
-// 2. Отдача списка самокатов в HTML
 app.get('/api/scooters', (req, res) => {
   res.json(Object.values(scooters));
 });
 
-// 3. Прием команд из HTML (START, STOP, CALL)
 app.post('/api/scooter/:id/command', (req, res) => {
   const id = req.params.id;
   const cmd = req.body.toString().toUpperCase() || req.body;
   commandQueue[id] = cmd;
-  console.log(`[CMD] Для ${id}: ${cmd}`);
   res.send('OK');
 });
 
-// 4. Самокат (телефон) забирает команду
 app.get('/api/scooter/:id/command', (req, res) => {
   const id = req.params.id;
   const cmd = commandQueue[id];
@@ -54,7 +40,7 @@ app.get('/api/scooter/:id/command', (req, res) => {
   res.send(cmd || '');
 });
 
-// 5. Оплата ЮKassa
+// ОПЛАТА ЮKASSA (РЕАЛЬНАЯ)
 app.post('/api/pay', async (req, res) => {
   const { amount, description } = req.body;
   const idempotenceKey = uuidv4();
@@ -63,6 +49,7 @@ app.post('/api/pay', async (req, res) => {
     const response = await axios.post('https://api.yookassa.ru/v3/payments', {
       amount: { value: `${amount}.00`, currency: "RUB" },
       capture: true,
+      // Сюда вернется пользователь после оплаты
       confirmation: { type: "redirect", return_url: "https://skyy-server.onrender.com" },
       description: description
     }, {
@@ -75,19 +62,19 @@ app.post('/api/pay', async (req, res) => {
         password: YOOKASSA_SECRET_KEY
       }
     });
+    
+    // Отдаем ссылку на страницу оплаты ЮKassa
     res.json({ confirmation_url: response.data.confirmation.confirmation_url });
   } catch (error) {
-    console.error('Ошибка ЮKassa:', error.response ? error.response.data : error.message);
-    res.status(500).json({ error: 'Ошибка платежной системы (проверь ключи)' });
+    console.error('ЮKassa Error:', error.response ? error.response.data : error.message);
+    res.status(500).json({ error: 'Ошибка ЮKassa. Проверь ключи в коде.' });
   }
 });
 
-// ===== РАЗДАЧА САЙТА =====
-// Отдаем index.html при заходе на главную страницу
 app.use(express.static(__dirname));
 app.get('/', (req, res) => {
   res.sendFile(path.join(__dirname, 'index.html'));
 });
 
 const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => console.log(`Сервер и сайт запущены на порту ${PORT}`));
+app.listen(PORT, () => console.log(`Server on port ${PORT}`));
