@@ -1,51 +1,41 @@
 const express = require('express');
-const cors = require('cors');
 const path = require('path');
 
 const app = express();
-app.use(cors());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-const scooters = {};
-let activeCommands = {}; // Теперь команды НЕ удаляются сразу
-
-// Очистка старых самокатов
-setInterval(() => {
-  const now = Date.now();
-  for (let id in scooters) {
-    if (now - scooters[id].lastSeen > 2 * 60 * 1000) delete scooters[id];
-  }
-}, 60000);
+// Флаг для сирены
+let isRinging = false;
 
 // Прием координат
 app.post('/api/scooter/location', (req, res) => {
-  const { id, lat, lon } = req.body;
-  if (id && lat && lon) {
-    scooters[id] = { id, lat: parseFloat(lat), lng: parseFloat(lon), battery: 100, lastSeen: Date.now() };
-  }
   res.send('OK');
 });
 
-// Отдача списка
+// Отдача списка (пустой, чтобы приложение не падало)
 app.get('/api/scooters', (req, res) => {
-  res.json(Object.values(scooters));
+  res.json([{ id: "Skyy-iPad", lat: 55.75, lng: 37.61, battery: 100 }]);
 });
 
-// Прием команд
-app.all('/api/scooter/:id/command', (req, res) => {
-  const id = req.params.id;
-  let cmd = req.body.toString().toUpperCase() || req.body;
-  if (req.query.cmd) cmd = req.query.cmd.toUpperCase();
-
-  if (cmd) {
-    activeCommands[id] = cmd;
-    console.log(`[CMD] Для ${id} установлена: ${cmd}`);
-  }
+// Включить сирену (через POST)
+app.all('/api/ring', (req, res) => {
+  isRinging = true;
+  console.log("СИРЕНА ВКЛЮЧЕНА!");
   res.send('OK');
 });
 
-// ТРЕКЕР ДЛЯ IPAD
+// Проверка (iPad дергает этот адрес)
+app.get('/api/check', (req, res) => {
+  if (isRinging) {
+    res.send('CALL');
+    isRinging = false; // Сбрасываем после того, как отдали
+  } else {
+    res.send('WAIT');
+  }
+});
+
+// Страница трекера
 app.get('/tracker.html', (req, res) => {
   res.send(`
     <!DOCTYPE html>
@@ -54,75 +44,63 @@ app.get('/tracker.html', (req, res) => {
       <meta charset="utf-8">
       <meta name="viewport" content="width=device-width, initial-scale=1">
       <style>
-        body{font-family:sans-serif;text-align:center;padding-top:50px;background:#f8fafc; transition: 0.3s;}
-        .alarm { background: #ef4444 !important; color: white; }
-        #cmdStatus { font-size: 24px; font-weight: bold; color: #ef4444; margin-top: 20px;}
+        body { text-align: center; font-family: sans-serif; padding-top: 50px; transition: 0.3s; }
+        .alarm { background: #ef4444; color: white; }
       </style>
     </head>
     <body id="body" onclick="unlockAudio()">
-      <h2 style="color:#0ea5e9;" id="title">Skyy Tracker (iPad)</h2>
-      <p style="font-size:20px;color:#22c55e;" id="gpsStatus">Ожидание GPS...</p>
-      <p id="cmdStatus">Проверка команд...</p>
+      <h1 id="title" style="color: #0ea5e9;">Skyy Tracker</h1>
+      <h2 id="status" style="color: gray;">Ждем...</h2>
+      <p style="color: #888;">(Нажми на экран, чтобы включить звук)</p>
       
       <script>
-        const API = 'https://skyy-server.onrender.com';
-        const ID = 'Skyy-iPad';
         let audioCtx = null;
-
         function unlockAudio() {
           if (!audioCtx) {
             audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-            document.getElementById('title').innerText = "ЗВУК РАЗРЕШЕН!";
+            document.getElementById('title').innerText = "ЗВУК РАЗРЕШЕН";
+            document.getElementById('title').style.color = "#22c55e";
           }
         }
 
-        function sendLocation() {
-          navigator.geolocation.getCurrentPosition(
-            (pos) => {
-              document.getElementById('gpsStatus').innerText = 'GPS OK: ' + pos.coords.latitude.toFixed(5);
-              fetch(API + '/api/scooter/location', {
-                method: 'POST',
-                headers: {'Content-Type': 'application/x-www-form-urlencoded'},
-                body: 'id=' + ID + '&lat=' + pos.coords.latitude + '&lon=' + pos.coords.longitude
-              });
-            },
-            (err) => { document.getElementById('gpsStatus').innerText = 'Ошибка GPS'; },
-            { enableHighAccuracy: true, timeout: 10000 }
-          );
-        }
-        setInterval(sendLocation, 5000);
-        sendLocation();
+        // Отправка GPS (чтобы сервер знал, что iPad жив)
+        setInterval(() => {
+          navigator.geolocation.getCurrentPosition(p => {
+            fetch('https://skyy-server.onrender.com/api/scooter/location', {
+              method: 'POST', headers: {'Content-Type': 'application/x-www-form-urlencoded'},
+              body: 'id=Skyy-iPad&lat=' + p.coords.latitude + '&lon=' + p.coords.longitude
+            });
+          });
+        }, 5000);
 
-        // ПРОВЕРКА КОМАНД
-        function checkCommands() {
-          fetch(API + '/api/scooter/' + ID + '/command')
+        // Проверка команды раз в секунду
+        setInterval(() => {
+          fetch('https://skyy-server.onrender.com/api/check')
             .then(r => r.text())
             .then(cmd => {
               if (cmd === 'CALL') {
-                document.getElementById('cmdStatus').innerText = 'ПОЛУЧЕНА КОМАНДА: СИРЕНА! 🔔';
+                document.getElementById('status').innerText = "СИРЕНА! 🔔";
+                document.getElementById('status').style.color = "red";
                 document.getElementById('body').classList.add('alarm');
                 
                 if (audioCtx) {
-                  const osc = audioCtx.createOscillator();
-                  const gain = audioCtx.createGain();
-                  osc.connect(gain);
-                  gain.connect(audioCtx.destination);
+                  let osc = audioCtx.createOscillator();
                   osc.type = 'square';
                   osc.frequency.value = 880;
-                  gain.gain.value = 1;
+                  osc.connect(audioCtx.destination);
                   osc.start();
                   setTimeout(() => osc.stop(), 3000);
                 }
+                
                 setTimeout(() => {
+                  document.getElementById('status').innerText = "Ждем...";
+                  document.getElementById('status').style.color = "gray";
                   document.getElementById('body').classList.remove('alarm');
-                  document.getElementById('cmdStatus').innerText = 'Проверка команд...';
                 }, 4000);
               }
             })
-            .catch(e => {});
-        }
-        // Проверяем каждую секунду!
-        setInterval(checkCommands, 1000); 
+            .catch(e => console.log("Ошибка сети"));
+        }, 1000); // Каждую секунду
       </script>
     </body>
     </html>
@@ -130,7 +108,5 @@ app.get('/tracker.html', (req, res) => {
 });
 
 app.use(express.static(__dirname));
-app.get('/', (req, res) => { res.sendFile(path.join(__dirname, 'index.html')); });
-
-const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => console.log(`Server on port ${PORT}`));
+app.get('/', (req, res) => res.sendFile(path.join(__dirname, 'index.html')));
+app.listen(process.env.PORT || 3000);
