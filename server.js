@@ -1,6 +1,7 @@
 const express = require('express');
 const cors = require('cors');
 const path = require('path');
+const axios = require('axios');
 
 const app = express();
 app.use(cors());
@@ -10,35 +11,29 @@ app.use(express.urlencoded({ extended: true }));
 const scooters = {};
 const commandQueue = {};
 
-// Автоочистка старых самокатов (чтобы не было фантомов)
+// Очистка старых самокатов (фантомов)
 setInterval(() => {
   const now = Date.now();
   for (let id in scooters) {
-    if (now - scooters[id].lastSeen > 2 * 60 * 1000) {
-      delete scooters[id];
-      console.log(`[Очистка] Удален ${id}`);
-    }
+    if (now - scooters[id].lastSeen > 2 * 60 * 1000) delete scooters[id];
   }
 }, 60000);
 
-// Прием координат от iPad
+// Прием координат
 app.post('/api/scooter/location', (req, res) => {
   const { id, lat, lon, battery, lock } = req.body;
   if (id && lat && lon) {
-    scooters[id] = { 
-      id, lat: parseFloat(lat), lng: parseFloat(lon), 
-      battery: parseInt(battery) || 100, lock: lock === '1', lastSeen: Date.now() 
-    };
+    scooters[id] = { id, lat: parseFloat(lat), lng: parseFloat(lon), battery: 100, lastSeen: Date.now() };
   }
   res.send('OK');
 });
 
-// Отдача списка самокатов в приложение
+// Отдача списка
 app.get('/api/scooters', (req, res) => {
   res.json(Object.values(scooters));
 });
 
-// Прием команд (Прозвон)
+// Прием команд (и через POST, и через ссылку)
 app.all('/api/scooter/:id/command', (req, res) => {
   const id = req.params.id;
   let cmd = req.body.toString().toUpperCase() || req.body;
@@ -46,12 +41,12 @@ app.all('/api/scooter/:id/command', (req, res) => {
 
   if (cmd) {
     commandQueue[id] = cmd;
-    console.log(`[CMD] Для ${id}: ${cmd}`);
+    console.log(`[CMD] ${id}: ${cmd}`);
   }
   res.send('OK');
 });
 
-// Страница Трекера
+// Страница Трекера для iPad
 app.get('/tracker.html', (req, res) => {
   res.send(`
     <!DOCTYPE html>
@@ -59,10 +54,7 @@ app.get('/tracker.html', (req, res) => {
     <head>
       <meta charset="utf-8">
       <meta name="viewport" content="width=device-width, initial-scale=1">
-      <style>
-        body{font-family:sans-serif;text-align:center;padding-top:50px;background:#f8fafc; transition: background 0.3s;}
-        .alarm { background: #ef4444 !important; color: white; }
-      </style>
+      <style>body{font-family:sans-serif;text-align:center;padding-top:50px;background:#f8fafc; transition: background 0.3s;} .alarm { background: #ef4444 !important; color: white; }</style>
     </head>
     <body id="body" onclick="unlockAudio()">
       <h2 style="color:#0ea5e9;" id="title">Skyy Tracker (iPad)</h2>
@@ -93,10 +85,7 @@ app.get('/tracker.html', (req, res) => {
                 body: 'id=' + ID + '&lat=' + pos.coords.latitude + '&lon=' + pos.coords.longitude + '&battery=100&lock=0'
               });
             },
-            (err) => {
-              document.getElementById('gpsStatus').innerText = 'Ошибка GPS: ' + err.message;
-              document.getElementById('gpsStatus').style.color = '#ef4444';
-            },
+            (err) => { document.getElementById('gpsStatus').innerText = 'Ошибка GPS'; },
             { enableHighAccuracy: true, timeout: 10000 }
           );
         }
@@ -141,9 +130,12 @@ app.get('/tracker.html', (req, res) => {
 });
 
 app.use(express.static(__dirname));
-app.get('/', (req, res) => {
-  res.sendFile(path.join(__dirname, 'index.html'));
-});
+app.get('/', (req, res) => { res.sendFile(path.join(__dirname, 'index.html')); });
+
+// Авто-пинг, чтобы сервер не засыпал на Render
+setInterval(() => {
+  axios.get('https://skyy-server.onrender.com/api/scooters').catch(() => {});
+}, 10 * 60 * 1000);
 
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => console.log(`Server on port ${PORT}`));
