@@ -3,13 +3,13 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
-<meta name="theme-color" content="#1c1c1e" />
+<meta name="theme-color" content="#121212" />
 <title>Skyy — самокаты</title>
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <style>
   :root{
-    --bg:#121212; --card:#1e1e1e; --card-2:#2d2d2d;
+    --bg:#121212; --card:#1c1c1e; --card-2:#2d2d2d;
     --ink:#ffffff; --muted:#888888;
     --accent:#ff5a1f; --green:#22c55e;
   }
@@ -20,73 +20,103 @@
   /* Тёмная карта */
   #map{position:absolute; inset:0; z-index:1; background:#000}
   .leaflet-tile-pane { filter: invert(1) hue-rotate(180deg) brightness(0.85) contrast(1.2); }
-  #map::after{content:''; position:absolute; inset:0; background:rgba(0,0,0,0.2); pointer-events:none; z-index:400}
 
   /* Верхняя панель */
   .topbar{position:absolute; top:0; left:0; right:0; z-index:500; padding:16px; display:flex; gap:10px; pointer-events:none}
   .topbar > * { pointer-events: auto; }
-  .search-bar{flex:1; background:#2d2d2d; border-radius:16px; padding:14px 16px; display:flex; align-items:center; gap:10px; color:var(--muted); font-size:15px; font-weight:500; cursor:pointer; box-shadow:0 4px 12px rgba(0,0,0,0.3)}
+  .search-wrapper{flex:1; background:#2d2d2d; border-radius:16px; padding:4px 16px; display:flex; align-items:center; gap:10px; box-shadow:0 4px 12px rgba(0,0,0,0.3)}
+  .search-wrapper input{flex:1; background:transparent; border:none; color:#fff; font-size:15px; outline:none; padding:10px 0;}
+  .search-wrapper input::placeholder{color:var(--muted)}
   
-  /* Кнопки на карте */
-  .map-controls{position:absolute; right:16px; bottom:180px; z-index:400; display:flex; flex-direction:column; gap:10px}
-  .map-btn{width:48px; height:48px; background:#2d2d2d; border-radius:50%; display:grid; place-items:center; font-size:20px; color:#fff; border:none; box-shadow:0 4px 12px rgba(0,0,0,0.3); cursor:pointer}
+  .icon-btn{width:48px; height:48px; background:#2d2d2d; border-radius:16px; display:grid; place-items:center; font-size:20px; color:#fff; border:none; cursor:pointer}
 
-  /* Маркер самоката */
+  /* Управление картой */
+  .map-controls{position:absolute; right:16px; bottom:220px; z-index:400; display:flex; flex-direction:column; gap:10px}
+  .map-btn{width:48px; height:48px; background:#2d2d2d; border-radius:50%; display:grid; place-items:center; font-size:20px; color:#fff; border:none; cursor:pointer; box-shadow:0 4px 12px rgba(0,0,0,0.3)}
+
+  /* Маркер */
   .marker{background:var(--accent); width:40px; height:40px; border-radius:50% 50% 50% 0; transform:rotate(-45deg); display:grid; place-items:center; border:3px solid #fff; box-shadow:0 4px 12px rgba(0,0,0,0.5)}
   .marker span{transform:rotate(45deg); font-size:20px}
 
-  /* Нижняя панель (Карточка) */
-  .sheet{position:absolute; left:0; right:0; bottom:0; z-index:500; background:var(--card); border-radius:24px 24px 0 0; padding:12px 20px 24px; box-shadow:0 -10px 30px rgba(0,0,0,0.5); transition:transform 0.3s}
-  .grabber{width:40px; height:5px; background:#444; border-radius:3px; margin:0 auto 16px}
+  /* Нижняя панель со свайпом */
+  .sheet{position:absolute; left:0; right:0; bottom:0; z-index:500; background:var(--card); border-radius:24px 24px 0 0; padding:12px 20px 24px; box-shadow:0 -10px 30px rgba(0,0,0,0.5); transition:transform 0.3s; display:flex; flex-direction:column; max-height:85vh}
+  .grabber-area{padding:10px 0 16px; cursor:grab; width:100%; display:flex; justify-content:center; touch-action:none}
+  .grabber{width:40px; height:5px; background:#444; border-radius:3px;}
   
   /* Карточка самоката */
   .scooter-card{display:flex; gap:16px; align-items:center; margin-bottom:20px; background:var(--card-2); padding:16px; border-radius:20px;}
   .scooter-img{width:60px; height:80px; background:#121212; border-radius:12px; display:grid; place-items:center; font-size:32px}
+  .scooter-info{flex:1}
   .scooter-info h2{margin:0 0 4px; font-size:22px; font-weight:700}
   .scooter-info p{margin:0; color:var(--muted); font-size:14px}
-  .scooter-info .price{color:var(--green); font-weight:700; margin-top:4px}
   .sound-btn{width:48px; height:48px; background:#3d3d3d; border-radius:50%; display:grid; place-items:center; border:none; font-size:20px; color:#fff; cursor:pointer}
 
   /* Кнопки действий */
   .btn-row{display:flex; gap:12px}
   .btn{flex:1; padding:18px; border:none; border-radius:16px; font-size:16px; font-weight:700; cursor:pointer; text-align:center}
-  .btn-start{background:var(--accent); color:#fff; box-shadow:0 4px 15px rgba(255,90,31,0.3)}
+  .btn-start{background:var(--accent); color:#fff;}
   .btn-book{background:#000; color:#fff; border:1px solid #333}
 
   /* Список самокатов */
-  .scooter-list-item{display:flex; gap:12px; align-items:center; padding:12px; border-radius:16px; cursor:pointer; margin-bottom:8px}
+  .scooter-list{overflow-y:auto; flex:1;}
+  .scooter-list-item{display:flex; gap:12px; align-items:center; padding:12px; border-radius:16px; cursor:pointer;}
   .scooter-list-item:hover{background:var(--card-2)}
 
-  /* Тосты */
+  /* Окна (Модалки) */
+  .modal{display:none; position:absolute; inset:0; background:rgba(0,0,0,0.8); z-index:1000; align-items:flex-end}
+  .modal.active{display:flex}
+  .modal-content{background:var(--card); width:100%; border-radius:24px 24px 0 0; padding:24px; padding-bottom:calc(24px + env(safe-area-inset-bottom)); animation: slideUp 0.3s}
+  @keyframes slideUp { from { transform: translateY(100%); } to { transform: translateY(0); } }
+
   .toast{position:absolute; bottom:120px; left:50%; transform:translateX(-50%); background:#fff; color:#000; padding:12px 20px; border-radius:12px; font-weight:600; font-size:14px; z-index:900; opacity:0; transition:.3s; pointer-events:none}
   .toast.show{opacity:1; transform:translate(-50%, -10px)}
-  
-  .hidden{display:none !important;}
 </style>
 </head>
 <body>
 <div id="app">
   <div id="map"></div>
   
+  <!-- Верхняя панель -->
   <div class="topbar">
-    <div class="search-bar" onclick="toast('Поиск в разработке')">
-      🔍 Куда поедем?
+    <div class="logo" style="font-weight:800; font-size:20px; align-items:center; display:flex;">Skyy</div>
+    <div class="search-wrapper">
+      <span style="color:var(--muted); font-size:18px">🔍</span>
+      <input type="text" id="searchInput" placeholder="Куда поедем?" oninput="filterScooters()">
     </div>
-    <button class="map-btn" style="width:48px;height:48px;background:#2d2d2d;border-radius:16px;border:none;color:#fff;font-size:18px" onclick="toast('Профиль')">👤</button>
+    <button class="icon-btn" onclick="openProfile()">👤</button>
   </div>
 
+  <!-- Управление картой -->
   <div class="map-controls">
     <button class="map-btn" onclick="locateMe()">🎯</button>
   </div>
 
-  <!-- Основная панель (Список самокатов) -->
+  <!-- Нижняя панель -->
   <div class="sheet" id="sheet">
-    <div class="grabber"></div>
-    <h2 style="margin:0 0 16px; font-size:20px;">Самокаты рядом</h2>
-    <div id="scooterList" style="overflow-y:auto; max-height:50vh;">
-      <p style="text-align:center; color:var(--muted);">Ищем самокаты...</p>
+    <div class="grabber-area" id="grabberArea"><div class="grabber"></div></div>
+    
+    <div id="mainPanel" style="display:flex; flex-direction:column; flex:1; overflow:hidden;">
+      <h2 style="margin:0 0 16px; font-size:20px;">Самокаты рядом</h2>
+      <div class="scooter-list" id="scooterList"></div>
+      <div style="color:var(--muted); font-size:12px; text-align:center; margin-top:16px" id="serverStatus">Подключение...</div>
     </div>
-    <div style="color:var(--muted); font-size:12px; text-align:center; margin-top:16px" id="serverStatus">Подключение...</div>
+
+    <div id="detailPanel" style="display:none; flex-direction:column;">
+      <!-- Сюда вставляется карточка самоката -->
+    </div>
+  </div>
+
+  <!-- Модалка Профиля -->
+  <div class="modal" id="profileModal" onclick="if(event.target === this) closeModal('profileModal')">
+    <div class="modal-content">
+      <h2 style="margin:0 0 8px; font-size:24px;">Вход в Skyy</h2>
+      <p style="color:var(--muted); margin:0 0 24px;">Войдите, чтобы начать поездку</p>
+      
+      <input type="text" placeholder="Номер телефона или Gmail" style="width:100%; background:#2d2d2d; border:none; padding:16px; border-radius:12px; color:#fff; font-size:16px; margin-bottom:16px; outline:none;">
+      
+      <button class="btn btn-start" style="width:100%;" onclick="fakeLogin()">Продолжить</button>
+      <button class="btn btn-book" style="width:100%; margin-top:12px;" onclick="closeModal('profileModal')">Отмена</button>
+    </div>
   </div>
 
   <div class="toast" id="toast"></div>
@@ -94,10 +124,12 @@
 
 <script>
 const API_BASE = 'https://skyy-server.onrender.com'; 
-const state = { scooters: [], userPos: [55.75, 37.61], map: null, markers: {}, selected: null, ride: null, userMarker: null };
+const state = { scooters: [], userPos: [55.75, 37.61], map: null, markers: {}, selected: null, ride: null, isLoggedIn: false };
 
+// Тост
 function toast(msg){ const t=document.getElementById('toast'); t.textContent=msg; t.classList.add('show'); setTimeout(()=>t.classList.remove('show'), 3000); }
 
+// Карта
 function initMap(){
   state.map = L.map('map', {zoomControl:false}).setView(state.userPos, 16);
   L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(state.map);
@@ -105,16 +137,42 @@ function initMap(){
   navigator.geolocation.getCurrentPosition((pos) => {
     state.userPos = [pos.coords.latitude, pos.coords.longitude];
     state.map.setView(state.userPos, 17);
-    state.userMarker = L.circleMarker(state.userPos, {radius: 8, color: '#fff', weight: 3, fillColor: '#0ea5e9', fillOpacity: 1}).addTo(state.map);
+    L.circleMarker(state.userPos, {radius: 8, color: '#fff', weight: 3, fillColor: '#0ea5e9', fillOpacity: 1}).addTo(state.map);
   }, (err) => { toast("Разрешите GPS!"); }, { enableHighAccuracy: true });
 }
-
 function locateMe(){ if(state.userPos) state.map.flyTo(state.userPos, 18); }
 
+// Свайп нижней панели
+let startY = 0;
+let currentY = 0;
+const sheet = document.getElementById('sheet');
+const grabber = document.getElementById('grabberArea');
+
+grabber.addEventListener('touchstart', e => {
+  startY = e.touches[0].clientY;
+  sheet.style.transition = 'none';
+});
+grabber.addEventListener('touchmove', e => {
+  currentY = e.touches[0].clientY;
+  let diff = currentY - startY;
+  if (diff < 0) diff = 0; // Тянем только вниз
+  sheet.style.transform = `translateY(${diff}px)`;
+});
+grabber.addEventListener('touchend', () => {
+  sheet.style.transition = 'transform 0.3s';
+  if (currentY - startY > 100) {
+    // Свернули панель (оставили только ручку)
+    sheet.style.transform = 'translateY(calc(100% - 80px))';
+  } else {
+    // Развернули обратно
+    sheet.style.transform = 'translateY(0)';
+  }
+});
+
+// Загрузка самокатов
 async function loadScooters(){
   try {
     const r = await fetch(`${API_BASE}/api/scooters`);
-    if(!r.ok) throw new Error('Офлайн');
     const data = await r.json();
     
     Object.values(state.markers).forEach(m => state.map.removeLayer(m));
@@ -133,26 +191,36 @@ async function loadScooters(){
     document.getElementById('serverStatus').textContent = `Самокатов онлайн: ${data.length}`;
     document.getElementById('serverStatus').style.color = 'var(--green)';
   } catch(e) {
-    document.getElementById('serverStatus').textContent = 'Сервер офлайн';
-    document.getElementById('serverStatus').style.color = 'red';
+    document.getElementById('serverStatus').textContent = 'Ошибка сети';
   }
 }
 
-function renderList(){
+function renderList(filterText = ''){
   const list = document.getElementById('scooterList');
-  if(!state.selected) {
-    if(state.scooters.length === 0){ list.innerHTML = '<p style="text-align:center;color:var(--muted)">Нет доступных самокатов</p>'; return; }
-    list.innerHTML = state.scooters.map(s => `
-      <div class="scooter-list-item" onclick="selectScooterById('${s.id}')">
-        <div style="font-size:32px; width:50px; text-align:center;">🛴</div>
-        <div style="flex:1">
-          <b style="font-size:16px">${s.id}</b>
-          <div style="color:var(--muted); font-size:13px;">Заряд: ${s.battery}%</div>
-        </div>
-        <div style="color:var(--green); font-weight:700;">55 ₽</div>
+  
+  if(state.selected) return; // Если выбран самокат, список скрыт
+
+  let filtered = state.scooters;
+  if(filterText) filtered = state.scooters.filter(s => s.id.toLowerCase().includes(filterText.toLowerCase()));
+
+  if(filtered.length === 0){ list.innerHTML = '<p style="text-align:center;color:var(--muted);margin-top:20px;">Самокатов не найдено</p>'; return; }
+  
+  list.innerHTML = filtered.map(s => `
+    <div class="scooter-list-item" onclick="selectScooterById('${s.id}')">
+      <div style="font-size:32px; width:50px; text-align:center;">🛴</div>
+      <div style="flex:1">
+        <b style="font-size:16px">${s.id}</b>
+        <div style="color:var(--muted); font-size:13px;">Заряд: ${s.battery}%</div>
       </div>
-    `).join('');
-  }
+      <div style="color:var(--green); font-weight:700;">55 ₽</div>
+    </div>
+  `).join('');
+}
+
+// Поиск
+function filterScooters(){
+  const text = document.getElementById('searchInput').value;
+  renderList(text);
 }
 
 function selectScooterById(id){ selectScooter(state.scooters.find(s => s.id === id)); }
@@ -160,28 +228,22 @@ function selectScooterById(id){ selectScooter(state.scooters.find(s => s.id === 
 function selectScooter(s){
   state.selected = s;
   state.map.flyTo([s.lat, s.lng], 18);
+  sheet.style.transform = 'translateY(0)'; // Разворачиваем панель
   
-  // Перерисовываем нижнюю панель под карточку самоката
-  document.getElementById('sheet').innerHTML = `
-    <div class="grabber"></div>
+  document.getElementById('mainPanel').style.display = 'none';
+  document.getElementById('detailPanel').style.display = 'flex';
+  
+  document.getElementById('detailPanel').innerHTML = `
     <div class="scooter-card">
       <div class="scooter-img">🛴</div>
-      <div class="scooter-info" style="flex:1">
+      <div class="scooter-info">
         <h2>${s.id}</h2>
         <p>Ninebot Max</p>
-        <div class="price">${s.battery} км</div>
+        <div style="color:var(--green); font-weight:700; margin-top:4px;">55 ₽ старт + 7 ₽/мин</div>
       </div>
       <button class="sound-btn" onclick="ringScooter()">🔊</button>
     </div>
     
-    <div style="display:flex; gap:12px; margin-bottom:20px;">
-      <div style="flex:1; background:var(--card-2); border-radius:16px; padding:12px;">
-        <div style="color:var(--muted); font-size:12px; margin-bottom:4px">Тариф</div>
-        <div style="font-weight:700; font-size:16px">55 ₽ старт</div>
-        <div style="color:var(--green); font-size:14px">7 ₽ / мин</div>
-      </div>
-    </div>
-
     <div style="display:flex; align-items:center; gap:12px; margin-bottom:20px;">
       <div style="font-size:24px;">💳</div>
       <div style="flex:1">
@@ -191,29 +253,41 @@ function selectScooter(s){
     </div>
 
     <div class="btn-row">
-      <button class="btn btn-start" onclick="startRide()">Старт</button>
-      <button class="btn btn-book" onclick="location.reload()">Бронь</button>
+      <button class="btn btn-start" onclick="tryStartRide()">Старт</button>
+      <button class="btn btn-book" onclick="backToList()">Назад</button>
     </div>
   `;
 }
 
+function backToList(){
+  state.selected = null;
+  document.getElementById('detailPanel').style.display = 'none';
+  document.getElementById('mainPanel').style.display = 'flex';
+  renderList();
+}
+
 async function ringScooter(){
   if(!state.selected) return;
-  toast('Отправка сигнала...');
+  toast('Прозвон...');
   await fetch(`${API_BASE}/api/scooter/${state.selected.id}/command`, { method: 'POST', body: 'CALL' });
-  toast('Самокат звонит!');
+}
+
+function tryStartRide(){
+  if(!state.isLoggedIn) {
+    openProfile();
+    return;
+  }
+  startRide();
 }
 
 async function startRide(){
-  if(!state.selected) return;
   await fetch(`${API_BASE}/api/scooter/${state.selected.id}/command`, { method: 'POST', body: 'START' });
   state.ride = { id: state.selected.id, start: Date.now() };
   
-  document.getElementById('sheet').innerHTML = `
-    <div class="grabber"></div>
-    <h2 style="color:var(--green); text-align:center;">Поездка началась</h2>
+  document.getElementById('detailPanel').innerHTML = `
+    <h2 style="color:var(--green); text-align:center; margin-top:20px;">Поездка началась</h2>
     <div style="font-size:64px;font-weight:800;margin:30px 0;text-align:center" id="rideTimer">00:00</div>
-    <button class="btn btn-start" style="width:100%" onclick="endRide()">Завершить поездку</button>
+    <button class="btn btn-start" style="width:100%" onclick="endRide()">Завершить</button>
   `;
   
   setInterval(() => {
@@ -224,10 +298,19 @@ async function startRide(){
 }
 
 async function endRide(){
-  if(!state.ride) return;
   await fetch(`${API_BASE}/api/scooter/${state.ride.id}/command`, { method: 'POST', body: 'STOP' }).catch(()=>{});
   state.ride = null;
-  location.reload();
+  backToList();
+}
+
+// Профиль
+function openProfile(){ document.getElementById('profileModal').classList.add('active'); }
+function closeModal(id){ document.getElementById(id).classList.remove('active'); }
+function fakeLogin(){ 
+  state.isLoggedIn = true;
+  closeModal('profileModal');
+  toast('Успешный вход!');
+  setTimeout(() => { if(state.selected) startRide(); }, 500);
 }
 
 initMap();
