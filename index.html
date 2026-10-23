@@ -22,14 +22,11 @@
 
   .topbar{position:absolute; top:0; left:0; right:0; z-index:500; padding:16px; display:flex; gap:8px; pointer-events:none; align-items:center}
   .topbar > * { pointer-events: auto; }
-  
   .icon-btn{width:44px; height:44px; background:var(--card-2); border-radius:14px; display:grid; place-items:center; font-size:20px; color:#fff; border:none; cursor:pointer; flex-shrink:0;}
-  
   .search-wrapper{flex:1; background:var(--card-2); border-radius:14px; padding:0 12px; display:flex; align-items:center; gap:6px; height:44px; min-width:0;}
   .search-wrapper input{flex:1; background:transparent; border:none; color:#fff; font-size:14px; outline:none; min-width:0;}
-  .search-wrapper input::placeholder{color:var(--muted)}
-
-  .map-controls{position:absolute; right:16px; bottom:220px; z-index:400; display:flex; flex-direction:column; gap:10px}
+  
+  .map-controls{position:absolute; right:16px; bottom:220px; z-index:400;}
   .map-btn{width:48px; height:48px; background:var(--card-2); border-radius:50%; display:grid; place-items:center; font-size:20px; color:#fff; border:none; cursor:pointer; box-shadow:0 4px 12px rgba(0,0,0,0.3)}
 
   .marker{background:var(--accent); width:40px; height:40px; border-radius:50% 50% 50% 0; transform:rotate(-45deg); display:grid; place-items:center; border:3px solid #fff; box-shadow:0 4px 12px rgba(0,0,0,0.5)}
@@ -55,23 +52,33 @@
   .scooter-list-item{display:flex; gap:12px; align-items:center; padding:12px; border-radius:16px; cursor:pointer;}
   .scooter-list-item:hover{background:var(--card-2)}
 
-  /* Модалки */
-  .modal{display:none; position:absolute; inset:0; background:rgba(0,0,0,0.8); z-index:2000; align-items:flex-end; justify-content:center;}
-  .modal.active{display:flex}
-  .modal-content{background:var(--card); width:100%; max-width:480px; border-radius:24px 24px 0 0; padding:24px; padding-bottom:calc(24px + env(safe-area-inset-bottom)); animation: slideUp 0.3s}
-  @keyframes slideUp { from { transform: translateY(100%); } to { transform: translateY(0); } }
-
-  .modal-header{display:flex; justify-content:space-between; align-items:center; margin-bottom:24px}
-  .modal-header h2{margin:0; font-size:22px}
-  .close-btn{background:var(--card-2); border:none; color:#fff; width:36px; height:36px; border-radius:50%; font-size:16px; cursor:pointer}
+  /* Экраны (полноэкранные) */
+  .screen{display:none; position:absolute; inset:0; background:var(--bg); z-index:3000; flex-direction:column; padding:24px; overflow-y:auto; animation:slideIn 0.3s}
+  @keyframes slideIn { from { transform: translateX(100%); } to { transform: translateX(0); } }
+  .screen.active{display:flex}
+  
+  .screen-header{display:flex; align-items:center; gap:16px; margin-bottom:24px;}
+  .back-btn{width:44px; height:44px; background:var(--card-2); border-radius:14px; display:grid; place-items:center; font-size:20px; border:none; color:#fff; cursor:pointer}
+  .screen h1{margin:0; font-size:24px}
+  
+  .content-box{background:var(--card); border-radius:20px; padding:20px; margin-bottom:16px;}
+  .content-box h3{margin:0 0 12px; font-size:18px; color:var(--accent)}
+  .content-box p, .content-box li{color:#ccc; font-size:15px; line-height:1.5; margin:0 0 10px;}
+  .content-box ul{padding-left:20px; margin:0 0 10px;}
 
   .menu-item{display:flex; justify-content:space-between; align-items:center; padding:20px 0; border-bottom:1px solid var(--card-2); cursor:pointer; font-size:16px; font-weight:500}
   .menu-item:last-child{border-bottom:none}
-  .menu-item:active{opacity:0.5}
 
-  input[type="text"], input[type="tel"]{width:100%; background:var(--card-2); border:none; padding:16px; border-radius:12px; color:#fff; font-size:16px; margin-bottom:16px; outline:none;}
+  /* Модалки (Профиль) */
+  .modal{display:none; position:absolute; inset:0; background:rgba(0,0,0,0.8); z-index:2000; align-items:flex-end; justify-content:center;}
+  .modal.active{display:flex}
+  .modal-content{background:var(--card); width:100%; max-width:480px; border-radius:24px 24px 0 0; padding:24px; padding-bottom:calc(24px + env(safe-area-inset-bottom));}
+  .modal-header{display:flex; justify-content:space-between; align-items:center; margin-bottom:24px}
+  .close-btn{background:var(--card-2); border:none; color:#fff; width:36px; height:36px; border-radius:50%; font-size:16px; cursor:pointer}
 
-  .toast{position:absolute; bottom:120px; left:50%; transform:translateX(-50%); background:#fff; color:#000; padding:12px 20px; border-radius:12px; font-weight:600; font-size:14px; z-index:3000; opacity:0; transition:.3s; pointer-events:none; text-align:center; width:max-content; max-width:90%}
+  input[type="tel"]{width:100%; background:var(--card-2); border:none; padding:16px; border-radius:12px; color:#fff; font-size:16px; margin-bottom:16px; outline:none;}
+
+  .toast{position:absolute; bottom:120px; left:50%; transform:translateX(-50%); background:#fff; color:#000; padding:12px 20px; border-radius:12px; font-weight:600; font-size:14px; z-index:9999; opacity:0; transition:.3s; pointer-events:none;}
   .toast.show{opacity:1; transform:translate(-50%, -10px)}
 </style>
 </head>
@@ -79,9 +86,8 @@
 <div id="app">
   <div id="map"></div>
   
-  <!-- Верхняя панель -->
   <div class="topbar">
-    <button class="icon-btn" onclick="openModal('menuModal')">☰</button>
+    <button class="icon-btn" onclick="openScreen('menuScreen')">☰</button>
     <div class="search-wrapper">
       <span style="color:var(--muted); font-size:16px">🔍</span>
       <input type="text" id="searchInput" placeholder="Куда поедем?" oninput="filterScooters()">
@@ -89,22 +95,100 @@
     <button class="icon-btn" onclick="openProfile()">👤</button>
   </div>
 
-  <!-- Кнопка на карте -->
   <div class="map-controls">
     <button class="map-btn" onclick="locateMe()">🎯</button>
   </div>
 
-  <!-- Нижняя панель -->
   <div class="sheet" id="sheet">
     <div class="grabber-area" id="grabberArea"><div class="grabber"></div></div>
-    
     <div id="mainPanel" style="display:flex; flex-direction:column; flex:1; overflow:hidden;">
       <h2 style="margin:0 0 16px; font-size:20px;">Самокаты рядом</h2>
       <div class="scooter-list" id="scooterList"></div>
       <div style="color:var(--muted); font-size:12px; text-align:center; margin-top:16px" id="serverStatus">Подключение...</div>
     </div>
-
     <div id="detailPanel" style="display:none; flex-direction:column;"></div>
+  </div>
+
+  <!-- ЭКРАН: МЕНЮ -->
+  <div class="screen" id="menuScreen">
+    <div class="screen-header">
+      <button class="back-btn" onclick="closeScreen('menuScreen')">←</button>
+      <h1>Меню</h1>
+    </div>
+    <div class="menu-item" onclick="openScreen('tariffsScreen')"><span>💰 Тарифы и подписки</span> <span>→</span></div>
+    <div class="menu-item" onclick="openScreen('helpScreen')"><span>🆘 Помощь и поддержка</span> <span>→</span></div>
+    <div class="menu-item" onclick="openScreen('safetyScreen')"><span>🛡️ Безопасность</span> <span>→</span></div>
+    <div class="menu-item" onclick="openScreen('aboutScreen')"><span>ℹ️ О сервисе Skyy</span> <span>→</span></div>
+  </div>
+
+  <!-- ЭКРАН: ТАРИФЫ -->
+  <div class="screen" id="tariffsScreen">
+    <div class="screen-header">
+      <button class="back-btn" onclick="closeScreen('tariffsScreen')">←</button>
+      <h1>Тарифы</h1>
+    </div>
+    <div class="content-box">
+      <h3>Старт поездки: 55 ₽</h3>
+      <p>Включает разблокировку самоката. Списывается сразу после нажатия «Старт».</p>
+    </div>
+    <div class="content-box">
+      <h3>Поминутная оплата: 7 ₽/мин</h3>
+      <p>Списание происходит каждую минуту поездки. Минимальная стоимость поездки — 55 ₽.</p>
+    </div>
+    <div class="content-box">
+      <h3>Подписка «Безлимит»</h3>
+      <p>Пока недоступна. Скоро вы сможете кататься без ограничений по времени за фиксированную плату.</p>
+    </div>
+  </div>
+
+  <!-- ЭКРАН: ПОМОЩЬ -->
+  <div class="screen" id="helpScreen">
+    <div class="screen-header">
+      <button class="back-btn" onclick="closeScreen('helpScreen')">←</button>
+      <h1>Помощь</h1>
+    </div>
+    <div class="content-box">
+      <h3>Что делать, если самокат не разблокируется?</h3>
+      <p>1. Проверьте интернет на телефоне.<br>2. Убедитесь, что на самокате горит индикатор.<br>3. Попробуйте отсканировать QR-код заново.</p>
+    </div>
+    <div class="content-box">
+      <h3>Как связаться с поддержкой?</h3>
+      <p>Телефон: 8 (800) 555-35-35<br>Почта: help@skyy.ru</p>
+    </div>
+  </div>
+
+  <!-- ЭКРАН: БЕЗОПАСНОСТЬ -->
+  <div class="screen" id="safetyScreen">
+    <div class="screen-header">
+      <button class="back-btn" onclick="closeScreen('safetyScreen')">←</button>
+      <h1>Безопасность</h1>
+    </div>
+    <div class="content-box">
+      <h3>Правила поездок</h3>
+      <ul>
+        <li>Передвигайтесь только по велосипедным дорожкам или обочине.</li>
+        <li>Не разгоняйтесь выше 25 км/ч.</li>
+        <li>Надевайте шлем и защиту.</li>
+        <li>Не катайтесь по мокрой плитке или песку.</li>
+      </ul>
+    </div>
+    <div class="content-box">
+      <h3>Ограничения</h3>
+      <p>Запрещено управлять самокатом в состоянии алкогольного опьянения. Запрещена езда по проезжей части без сопровождения взрослых.</p>
+    </div>
+  </div>
+
+  <!-- ЭКРАН: О СЕРВИСЕ -->
+  <div class="screen" id="aboutScreen">
+    <div class="screen-header">
+      <button class="back-btn" onclick="closeScreen('aboutScreen')">←</button>
+      <h1>О сервисе</h1>
+    </div>
+    <div class="content-box">
+      <h3>Skyy Mobility</h3>
+      <p>Мы делаем поездки по городу простыми и доступными. Наш парк постоянно обновляется, а сервис работает 24/7.</p>
+      <p>Версия приложения: 1.0.0 (Beta)</p>
+    </div>
   </div>
 
   <!-- МОДАЛКА: ПРОФИЛЬ -->
@@ -120,9 +204,9 @@
           <div style="font-size:18px; font-weight:700;" id="userPhoneDisplay">+7 999 000-00-00</div>
           <div style="color:var(--green); font-size:14px; margin-top:4px;">Авторизован</div>
         </div>
-        <div class="menu-item" onclick="toast('История поездок пуста')"><span>📄 История поездок</span> <span>→</span></div>
-        <div class="menu-item" onclick="toast('Способы оплаты')"><span>💳 Способы оплаты</span> <span>→</span></div>
-        <div class="menu-item" onclick="toast('Настройки')"><span>⚙️ Настройки</span> <span>→</span></div>
+        <div class="menu-item" onclick="openScreen('historyScreen')"><span>📄 История поездок</span> <span>→</span></div>
+        <div class="menu-item" onclick="toast('Выбрать карту: МИР *4235')"><span>💳 Способы оплаты</span> <span>→</span></div>
+        <div class="menu-item" onclick="toast('Настройки уведомлений')"><span>⚙️ Настройки</span> <span>→</span></div>
         <button class="btn btn-book" style="width:100%; margin-top:24px;" onclick="logout()">Выйти</button>
       </div>
 
@@ -134,17 +218,16 @@
     </div>
   </div>
 
-  <!-- МОДАЛКА: МЕНЮ -->
-  <div class="modal" id="menuModal">
-    <div class="modal-content">
-      <div class="modal-header">
-        <h2>Меню</h2>
-        <button class="close-btn" onclick="closeModal('menuModal')">✕</button>
-      </div>
-      <div class="menu-item" onclick="toast('Тарифы и подписки')"><span>💰 Тарифы и подписки</span> <span>→</span></div>
-      <div class="menu-item" onclick="toast('Помощь и поддержка')"><span>🆘 Помощь и поддержка</span> <span>→</span></div>
-      <div class="menu-item" onclick="toast('Безопасность')"><span>🛡️ Безопасность</span> <span>→</span></div>
-      <div class="menu-item" onclick="toast('О сервисе Skyy')"><span>ℹ️ О сервисе Skyy</span> <span>→</span></div>
+  <!-- ЭКРАН: ИСТОРИЯ (из профиля) -->
+  <div class="screen" id="historyScreen">
+    <div class="screen-header">
+      <button class="back-btn" onclick="closeScreen('historyScreen')">←</button>
+      <h1>История поездок</h1>
+    </div>
+    <div class="content-box" style="text-align:center;">
+      <div style="font-size:40px; margin-bottom:16px;">🛴</div>
+      <h3>Пока пусто</h3>
+      <p>Ваши поездки будут отображаться здесь. Самое время начать первую!</p>
     </div>
   </div>
 
@@ -157,7 +240,11 @@ const state = { scooters: [], userPos: [55.75, 37.61], map: null, markers: {}, s
 
 function toast(msg){ const t=document.getElementById('toast'); t.textContent=msg; t.classList.add('show'); setTimeout(()=>t.classList.remove('show'), 3000); }
 
-// Управление модалками
+// Управление экранами (сдвиг справа)
+function openScreen(id){ document.getElementById(id).classList.add('active'); }
+function closeScreen(id){ document.getElementById(id).classList.remove('active'); }
+
+// Управление модалками (снизу)
 function openModal(id){ document.getElementById(id).classList.add('active'); }
 function closeModal(id){ document.getElementById(id).classList.remove('active'); }
 
@@ -177,7 +264,6 @@ function openProfile(){
 function login(){
   const phone = document.getElementById('phoneInput').value;
   if(!phone) { toast('Введите номер'); return; }
-  
   localStorage.setItem('skyy_phone', phone);
   state.isLoggedIn = true;
   closeModal('profileModal');
@@ -191,10 +277,7 @@ function logout(){
   toast('Вы вышли');
 }
 
-// Проверка входа при загрузке
-if(localStorage.getItem('skyy_phone')){
-  state.isLoggedIn = true;
-}
+if(localStorage.getItem('skyy_phone')) state.isLoggedIn = true;
 
 // Карта
 function initMap(){
