@@ -10,11 +10,11 @@ app.use(express.urlencoded({ extended: true }));
 const scooters = {};
 const commandQueue = {};
 
-// Очистка старых самокатов (чтобы не было фантомов)
+// Автоочистка старых самокатов
 setInterval(() => {
   const now = Date.now();
   for (let id in scooters) {
-    if (now - scooters[id].lastSeen > 2 * 60 * 1000) { // Если нет связи 2 минуты
+    if (now - scooters[id].lastSeen > 2 * 60 * 1000) {
       delete scooters[id];
       console.log(`[Очистка] Удален ${id}`);
     }
@@ -38,7 +38,7 @@ app.get('/api/scooters', (req, res) => {
   res.json(Object.values(scooters));
 });
 
-// Прием команд (работает и через POST, и через GET-ссылку)
+// Прием команд
 app.all('/api/scooter/:id/command', (req, res) => {
   const id = req.params.id;
   let cmd = req.body.toString().toUpperCase() || req.body;
@@ -51,7 +51,7 @@ app.all('/api/scooter/:id/command', (req, res) => {
   res.send('OK');
 });
 
-// Страница Трекера
+// Страница Трекера (iPad)
 app.get('/tracker.html', (req, res) => {
   res.send(`
     <!DOCTYPE html>
@@ -140,6 +140,7 @@ app.get('/tracker.html', (req, res) => {
   `);
 });
 
+// Раздача index.html
 app.use(express.static(__dirname));
 app.get('/', (req, res) => {
   res.sendFile(path.join(__dirname, 'index.html'));
