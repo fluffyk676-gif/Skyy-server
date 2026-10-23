@@ -10,7 +10,7 @@ app.use(express.urlencoded({ extended: true }));
 const scooters = {};
 const commandQueue = {};
 
-// Автоочистка старых самокатов
+// Автоочистка старых самокатов (чтобы не было фантомов)
 setInterval(() => {
   const now = Date.now();
   for (let id in scooters) {
@@ -21,7 +21,7 @@ setInterval(() => {
   }
 }, 60000);
 
-// Прием координат
+// Прием координат от iPad
 app.post('/api/scooter/location', (req, res) => {
   const { id, lat, lon, battery, lock } = req.body;
   if (id && lat && lon) {
@@ -33,12 +33,12 @@ app.post('/api/scooter/location', (req, res) => {
   res.send('OK');
 });
 
-// Отдача списка
+// Отдача списка самокатов в приложение
 app.get('/api/scooters', (req, res) => {
   res.json(Object.values(scooters));
 });
 
-// Прием команд
+// Прием команд (Прозвон)
 app.all('/api/scooter/:id/command', (req, res) => {
   const id = req.params.id;
   let cmd = req.body.toString().toUpperCase() || req.body;
@@ -51,7 +51,7 @@ app.all('/api/scooter/:id/command', (req, res) => {
   res.send('OK');
 });
 
-// Страница Трекера (iPad)
+// Страница Трекера
 app.get('/tracker.html', (req, res) => {
   res.send(`
     <!DOCTYPE html>
@@ -140,7 +140,6 @@ app.get('/tracker.html', (req, res) => {
   `);
 });
 
-// Раздача index.html
 app.use(express.static(__dirname));
 app.get('/', (req, res) => {
   res.sendFile(path.join(__dirname, 'index.html'));
