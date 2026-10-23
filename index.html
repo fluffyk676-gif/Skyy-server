@@ -9,7 +9,6 @@
 <style>
   :root{--sky:#0ea5e9;--bg:#f8fafc;--panel:#fff;--ink:#0f172a;--muted:#64748b;--green:#22c55e;--red:#ef4444;--amber:#f59e0b;--shadow:0 10px 30px rgba(2,132,199,.15)}
   body{margin:0;font-family:-apple-system,sans-serif;background:var(--bg);color:var(--ink);overflow:hidden}
-  body.dark { --bg:#0f172a; --panel:#1e293b; --ink:#f1f5f9; --muted:#94a3b8; }
   #app{position:relative;height:100dvh;max-width:480px;margin:0 auto;overflow:hidden}
   #map{position:absolute;inset:0;z-index:1;background:#eef2f7}
   
@@ -20,13 +19,10 @@
   
   .sheet{position:absolute;left:0;right:0;bottom:0;z-index:500;background:var(--panel);border-radius:24px 24px 0 0;padding:20px;box-shadow:0 -10px 40px rgba(0,0,0,.1);max-height:70vh;display:flex;flex-direction:column}
   .scooter{display:flex;align-items:center;gap:12px;padding:12px;border-radius:14px;cursor:pointer;border:2px solid transparent}
-  .scooter:hover{background:rgba(0,0,0,0.05)}
-  body.dark .scooter:hover{background:rgba(255,255,255,0.05)}
   
   .btn{width:100%;padding:16px;border:none;border-radius:14px;font-weight:700;font-size:16px;cursor:pointer;margin-top:10px}
   .btn-primary{background:var(--sky);color:#fff}
   .btn-ghost{background:rgba(0,0,0,0.05);color:var(--ink)}
-  body.dark .btn-ghost{background:rgba(255,255,255,0.1)}
   .btn-ring{background:var(--amber);color:#fff;margin-top:8px}
   .btn-end{background:var(--red);color:#fff;margin-top:20px}
   
@@ -66,11 +62,16 @@ function initMap(){
   state.map = L.map('map', {zoomControl:false}).setView(state.userPos, 14);
   L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(state.map);
   
-  navigator.geolocation.getCurrentPosition((pos) => {
-    state.userPos = [pos.coords.latitude, pos.coords.longitude];
-    state.map.setView(state.userPos, 16);
-    state.userMarker = L.circleMarker(state.userPos, {radius: 8, color: '#fff', weight: 3, fillColor: '#0ea5e9', fillOpacity: 1}).addTo(state.map);
-  }, (err) => { console.log("GPS Error:", err); }, { enableHighAccuracy: true });
+  // Принудительный запрос GPS
+  navigator.geolocation.getCurrentPosition(
+    (pos) => {
+      state.userPos = [pos.coords.latitude, pos.coords.longitude];
+      state.map.setView(state.userPos, 16);
+      state.userMarker = L.circleMarker(state.userPos, {radius: 8, color: '#fff', weight: 3, fillColor: '#0ea5e9', fillOpacity: 1}).addTo(state.map);
+    },
+    (err) => { toast("Разрешите GPS в браузере!"); },
+    { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
+  );
 }
 
 function locateMe(){
@@ -135,7 +136,7 @@ async function ringScooter(){
   if(!state.selected) return;
   toast('Отправляем команду...');
   await fetch(`${API_BASE}/api/scooter/${state.selected.id}/command`, { method: 'POST', body: 'CALL' });
-  toast('Самокат звонит! Ищите звук.');
+  toast('Самокат звонит!');
 }
 
 async function startRide(){
