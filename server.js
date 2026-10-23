@@ -1,41 +1,33 @@
-const express = require('express');
-const cors = require('cors');
-const path = require('path');
-
-const app = express();
-app.use(cors());
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
-
-const scooters = {};
-
-// Прием координат (теперь работает и через POST, и через GET-ссылку)
-app.all('/api/scooter/location', (req, res) => {
-  const data = req.method === 'GET' ? req.query : req.body;
-  const { id, lat, lon, battery, lock } = data;
-  
-  if (id && lat && lon) {
-    scooters[id] = { 
-      id, 
-      lat: parseFloat(lat), 
-      lng: parseFloat(lon), 
-      battery: parseInt(battery) || 100, 
-      lastSeen: Date.now() 
-    };
-    console.log(`[GPS] ${id}: ${lat}, ${lon}`);
-  }
-  res.send('OK');
+// Страница-трекер для старого телефона
+app.get('/tracker.html', (req, res) => {
+  res.send(`
+    <!DOCTYPE html>
+    <html>
+    <head><meta charset="utf-8"><title>Трекер</title></head>
+    <body style="font-family:sans-serif; text-align:center; padding-top:50px;">
+      <h2>Трекер активен</h2>
+      <p id="status">Ожидание GPS...</p>
+      <script>
+        const API = 'https://skyy-server.onrender.com/api/scooter/location';
+        setInterval(() => {
+          navigator.geolocation.getCurrentPosition((pos) => {
+            const lat = pos.coords.latitude;
+            const lon = pos.coords.longitude;
+            fetch(API, {
+              method: 'POST',
+              headers: {'Content-Type': 'application/x-www-form-urlencoded'},
+              body: `id=Skyy-Meizu&lat=${lat}&lon=${lon}&battery=100&lock=0`
+            }).then(() => {
+              document.getElementById('status').innerText = 'Отправлено: ' + lat + ', ' + lon;
+            }).catch(e => {
+              document.getElementById('status').innerText = 'Ошибка сети';
+            });
+          }, (err) => {
+            document.getElementById('status').innerText = 'Разрешите геолокацию в браузере!';
+          }, { enableHighAccuracy: true });
+        }, 5000); // Отправляем каждые 5 секунд
+      </script>
+    </body>
+    </html>
+  `);
 });
-
-app.get('/api/scooters', (req, res) => {
-  res.json(Object.values(scooters));
-});
-
-// Остальное (оплата и т.д.) оставляем как было
-app.use(express.static(__dirname));
-app.get('/', (req, res) => {
-  res.sendFile(path.join(__dirname, 'index.html'));
-});
-
-const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => console.log(`Server on port ${PORT}`));
