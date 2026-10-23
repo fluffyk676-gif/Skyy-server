@@ -13,8 +13,7 @@
   #app{position:relative;height:100dvh;max-width:480px;margin:0 auto;overflow:hidden}
   #map{position:absolute;inset:0;z-index:1;background:#eef2f7}
   
-  .topbar{position:absolute;top:0;left:0;right:0;z-index:500;padding:14px;display:flex;gap:8px;pointer-events:none}
-  .topbar > * { pointer-events: auto; }
+  .topbar{position:absolute;top:0;left:0;right:0;z-index:500;padding:14px;display:flex;gap:8px}
   .logo{background:var(--panel);border-radius:14px;box-shadow:var(--shadow);padding:12px;font-weight:800;font-size:18px}
   .search-btn{flex:1;background:var(--panel);border:none;border-radius:14px;box-shadow:var(--shadow);text-align:left;padding:0 16px;color:var(--muted);font-size:14px;cursor:pointer}
   .icon-btn{width:44px;height:44px;background:var(--panel);border:none;border-radius:14px;box-shadow:var(--shadow);font-size:18px;display:grid;place-items:center;cursor:pointer}
@@ -29,13 +28,10 @@
   .btn-ghost{background:rgba(0,0,0,0.05);color:var(--ink)}
   body.dark .btn-ghost{background:rgba(255,255,255,0.1)}
   .btn-ring{background:var(--amber);color:#fff;margin-top:8px}
-  .btn-end{background:var(--red);color:#fff;margin-top:20px}
   
   .marker{background:var(--sky);width:36px;height:36px;border-radius:50%;display:grid;place-items:center;border:3px solid #fff;box-shadow:0 4px 12px rgba(0,0,0,.2);animation:pulse 2s infinite;font-size:18px}
   @keyframes pulse{0%,100%{box-shadow:0 0 0 6px rgba(14,165,233,.3)}50%{box-shadow:0 0 0 12px rgba(14,165,233,.1)}}
   
-  .modal{display:none;position:absolute;inset:0;background:rgba(0,0,0,.6);z-index:999;align-items:center;justify-content:center;padding:20px}
-  .modal-card{background:var(--panel);padding:24px;border-radius:20px;width:100%;max-width:320px;text-align:center}
   .toast{position:absolute;bottom:120px;left:50%;transform:translateX(-50%);background:#000;color:#fff;padding:12px;border-radius:8px;z-index:900;opacity:0;transition:.3s}
   .toast.show{opacity:1}
 </style>
@@ -48,33 +44,12 @@
     <div class="logo">Skyy</div>
     <button class="search-btn" onclick="toast('Поиск в разработке')">🔍 Куда поедем?</button>
     <button class="icon-btn" onclick="locateMe()">📍</button>
-    <button class="icon-btn" onclick="toggleSettings()">⚙️</button>
   </div>
 
   <div class="sheet" id="sheet">
     <h2 style="margin:0 0 12px">Самокаты рядом</h2>
     <div id="scooterList" style="overflow-y:auto;flex:1"></div>
     <div style="color:var(--muted);font-size:12px;text-align:center;margin-top:10px" id="serverStatus">Подключение...</div>
-  </div>
-
-  <!-- Модалка Оплаты -->
-  <div class="modal" id="paymentModal">
-    <div class="modal-card">
-      <h3>Поездка завершена</h3>
-      <p style="color:var(--muted);font-size:14px">К оплате:</p>
-      <div style="font-size:36px;font-weight:800;margin:10px 0 20px" id="payAmount">0 ₽</div>
-      <button class="btn btn-primary" onclick="payWithSber()">Оплатить по СБП</button>
-      <button class="btn btn-ghost" onclick="closePayModal()">Позже</button>
-    </div>
-  </div>
-
-  <!-- Модалка Настроек -->
-  <div class="modal" id="settingsModal">
-    <div class="modal-card">
-      <h3>Настройки</h3>
-      <button class="btn btn-ghost" onclick="toggleDarkMode()">🌗 Сменить тему</button>
-      <button class="btn btn-ghost" onclick="document.getElementById('settingsModal').style.display='none'">Закрыть</button>
-    </div>
   </div>
 
   <div class="toast" id="toast"></div>
@@ -85,31 +60,16 @@ const API_BASE = 'https://skyy-server.onrender.com';
 const state = { scooters: [], userPos: [55.75, 37.61], map: null, markers: {}, selected: null, ride: null, userMarker: null };
 
 function toast(msg){ const t=document.getElementById('toast'); t.textContent=msg; t.classList.add('show'); setTimeout(()=>t.classList.remove('show'), 3000); }
-function closePayModal(){ document.getElementById('paymentModal').style.display='none'; location.reload(); }
-function toggleSettings(){ document.getElementById('settingsModal').style.display='flex'; }
-function toggleDarkMode(){ document.body.classList.toggle('dark'); }
 
-// Инициализация карты и GPS
 function initMap(){
   state.map = L.map('map', {zoomControl:false}).setView(state.userPos, 14);
   L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(state.map);
   
-  // Включаем GPS
-  if (navigator.geolocation) {
-    navigator.geolocation.watchPosition(
-      (pos) => {
-        state.userPos = [pos.coords.latitude, pos.coords.longitude];
-        if(!state.userMarker) {
-          state.userMarker = L.circleMarker(state.userPos, {radius: 8, color: '#fff', weight: 3, fillColor: '#0ea5e9', fillOpacity: 1}).addTo(state.map);
-          state.map.setView(state.userPos, 16);
-        } else {
-          state.userMarker.setLatLng(state.userPos);
-        }
-      },
-      (err) => { console.log("GPS Error:", err); },
-      { enableHighAccuracy: true, maximumAge: 5000, timeout: 10000 }
-    );
-  }
+  navigator.geolocation.getCurrentPosition((pos) => {
+    state.userPos = [pos.coords.latitude, pos.coords.longitude];
+    state.map.setView(state.userPos, 16);
+    state.userMarker = L.circleMarker(state.userPos, {radius: 8, color: '#fff', weight: 3, fillColor: '#0ea5e9', fillOpacity: 1}).addTo(state.map);
+  }, (err) => { console.log("GPS Error:", err); }, { enableHighAccuracy: true });
 }
 
 function locateMe(){
@@ -117,7 +77,6 @@ function locateMe(){
   else toast("Ожидание GPS...");
 }
 
-// Загрузка самокатов
 async function loadScooters(){
   try {
     const r = await fetch(`${API_BASE}/api/scooters`);
@@ -165,7 +124,7 @@ function selectScooter(s){
   document.getElementById('sheet').innerHTML = `
     <h2 style="margin:0 0 4px">${s.id}</h2>
     <p style="color:var(--muted);margin:0 0 16px">Заряд: ${s.battery}%</p>
-    <button class="btn btn-primary" onclick="startRide()">Начать поездку (30 ₽ + 6 ₽/мин)</button>
+    <button class="btn btn-primary" onclick="startRide()">Начать поездку</button>
     <button class="btn btn-ring" onclick="ringScooter()">🔊 Прозвонить</button>
     <button class="btn btn-ghost" onclick="location.reload()">Назад</button>
   `;
@@ -187,7 +146,7 @@ async function startRide(){
     <h2 style="color:var(--green)">В пути 🚀</h2>
     <p style="color:var(--muted)">Самокат: ${state.selected.id}</p>
     <div style="font-size:48px;font-weight:800;margin:20px 0" id="rideTimer">00:00</div>
-    <button class="btn btn-end" onclick="endRide()">Завершить</button>
+    <button class="btn btn-ghost" onclick="endRide()">Завершить</button>
   `;
   
   setInterval(() => {
@@ -199,23 +158,9 @@ async function startRide(){
 
 async function endRide(){
   if(!state.ride) return;
-  const sec = Math.floor((Date.now() - state.ride.start) / 1000);
-  const cost = 30 + Math.ceil(sec / 60) * 6;
-  
   await fetch(`${API_BASE}/api/scooter/${state.ride.id}/command`, { method: 'POST', body: 'STOP' }).catch(()=>{});
   state.ride = null;
-  document.getElementById('payAmount').textContent = cost + ' ₽';
-  document.getElementById('paymentModal').style.display = 'flex';
-}
-
-// Оплата Сбер
-function payWithSber(){
-  // ВСТАВЬ СЮДА СВОЮ ССЫЛКУ ИЗ СБЕРА!
-  const sberLink = "https://online.sberbank.ru/CSAFront/api/..."; 
-  window.open(sberLink, '_blank');
-  document.getElementById('paymentModal').style.display = 'none';
-  toast('Ожидаем оплату...');
-  setTimeout(() => { location.reload(); }, 2000);
+  location.reload();
 }
 
 initMap();
