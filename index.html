@@ -6,42 +6,35 @@
 <title>Skyy — самокаты</title>
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<!-- Библиотека для построения маршрутов (поиска) -->
+<link rel="stylesheet" href="https://unpkg.com/leaflet-routing-machine@latest/dist/leaflet-routing-machine.css" />
+<script src="https://unpkg.com/leaflet-routing-machine@latest/dist/leaflet-routing-machine.js"></script>
+
 <style>
   :root{--sky:#0ea5e9;--bg:#f8fafc;--panel:#fff;--ink:#0f172a;--muted:#64748b;--green:#22c55e;--red:#ef4444;--amber:#f59e0b;--shadow:0 10px 30px rgba(2,132,199,.15)}
-  body{margin:0;font-family:-apple-system,BlinkMacSystemFont,sans-serif;background:var(--bg);color:var(--ink);overflow:hidden}
-  body.dark { --bg:#0f172a; --panel:#1e293b; --ink:#f1f5f9; --muted:#94a3b8; }
+  body{margin:0;font-family:-apple-system,sans-serif;background:var(--bg);color:var(--ink);overflow:hidden}
   #app{position:relative;height:100dvh;max-width:480px;margin:0 auto;overflow:hidden}
   #map{position:absolute;inset:0;z-index:1;background:#eef2f7}
   
-  /* Верхняя панель */
-  .topbar{position:absolute;top:0;left:0;right:0;z-index:500;padding:14px;display:flex;gap:8px;pointer-events:none}
-  .topbar > * { pointer-events: auto; }
+  .topbar{position:absolute;top:0;left:0;right:0;z-index:500;padding:14px;display:flex;gap:8px}
   .logo{background:var(--panel);border-radius:14px;box-shadow:var(--shadow);padding:12px;font-weight:800;font-size:18px}
-  .search-btn{flex:1;background:var(--panel);border:none;border-radius:14px;box-shadow:var(--shadow);text-align:left;padding:0 16px;color:var(--muted);font-size:14px}
-  .icon-btn{width:44px;height:44px;background:var(--panel);border:none;border-radius:14px;box-shadow:var(--shadow);font-size:18px;display:grid;place-items:center;cursor:pointer}
-
-  /* Нижняя панель */
+  .search-btn{flex:1;background:var(--panel);border:none;border-radius:14px;box-shadow:var(--shadow);text-align:left;padding:0 16px;color:var(--muted);font-size:14px;cursor:pointer}
+  
   .sheet{position:absolute;left:0;right:0;bottom:0;z-index:500;background:var(--panel);border-radius:24px 24px 0 0;padding:20px;box-shadow:0 -10px 40px rgba(0,0,0,.1);max-height:70vh;display:flex;flex-direction:column}
   .scooter{display:flex;align-items:center;gap:12px;padding:12px;border-radius:14px;cursor:pointer;border:2px solid transparent}
-  .scooter:hover{background:rgba(0,0,0,0.05)}
-  body.dark .scooter:hover{background:rgba(255,255,255,0.05)}
+  .scooter:hover{background:#f1f5f9}
   
-  /* Кнопки */
   .btn{width:100%;padding:16px;border:none;border-radius:14px;font-weight:700;font-size:16px;cursor:pointer;margin-top:10px}
   .btn-primary{background:var(--sky);color:#fff}
-  .btn-ghost{background:rgba(0,0,0,0.05);color:var(--ink)}
-  body.dark .btn-ghost{background:rgba(255,255,255,0.1)}
+  .btn-ghost{background:#f1f5f9;color:var(--ink)}
   .btn-ring{background:var(--amber);color:#fff;margin-top:8px}
-  .btn-end{background:var(--red);color:#fff;margin-top:20px}
-
-  /* Маркер */
-  .marker{background:var(--sky);width:36px;height:36px;border-radius:50%;display:grid;place-items:center;border:3px solid #fff;box-shadow:0 4px 12px rgba(0,0,0,.2);animation:pulse 2s infinite;font-size:18px}
+  .btn-end{background:var(--red);color:#fff}
+  
+  .marker{background:var(--sky);width:36px;height:36px;border-radius:50%;display:grid;place-items:center;border:3px solid #fff;box-shadow:0 4px 12px rgba(0,0,0,.2);font-size:18px;animation:pulse 2s infinite}
   @keyframes pulse{0%,100%{box-shadow:0 0 0 6px rgba(14,165,233,.3)}50%{box-shadow:0 0 0 12px rgba(14,165,233,.1)}}
   
-  /* Модалки */
-  .modal{display:none;position:absolute;inset:0;background:rgba(0,0,0,.6);z-index:999;align-items:center;justify-content:center;padding:20px}
-  .modal-card{background:var(--panel);padding:24px;border-radius:20px;width:100%;max-width:320px;text-align:center;color:var(--ink)}
-  
+  .modal{display:none;position:absolute;inset:0;background:rgba(0,0,0,.7);z-index:999;align-items:center;justify-content:center;padding:20px}
+  .modal-card{background:var(--panel);padding:24px;border-radius:20px;width:100%;max-width:320px;text-align:center}
   .toast{position:absolute;bottom:120px;left:50%;transform:translateX(-50%);background:#000;color:#fff;padding:12px;border-radius:8px;z-index:900;opacity:0;transition:.3s}
   .toast.show{opacity:1}
 </style>
@@ -50,15 +43,11 @@
 <div id="app">
   <div id="map"></div>
   
-  <!-- Верхняя панель -->
   <div class="topbar">
     <div class="logo">Skyy</div>
-    <button class="search-btn" onclick="alert('Поиск адресов появится в следующей версии')">🔍 Куда поедем?</button>
-    <button class="icon-btn" onclick="locateMe()">📍</button>
-    <button class="icon-btn" onclick="toggleSettings()">⚙️</button>
+    <button class="search-btn" onclick="startSearch()">🔍 Куда поедем?</button>
   </div>
 
-  <!-- Нижняя панель -->
   <div class="sheet" id="sheet">
     <h2 style="margin:0 0 12px">Самокаты рядом</h2>
     <div id="scooterList" style="overflow-y:auto;flex:1"></div>
@@ -71,17 +60,8 @@
       <h3>Поездка завершена</h3>
       <p style="color:var(--muted);font-size:14px">К оплате:</p>
       <div style="font-size:36px;font-weight:800;margin:10px 0 20px" id="payAmount">0 ₽</div>
-      <button class="btn btn-primary" onclick="payWithYooKassa()">Оплатить картой (ЮKassa)</button>
-      <button class="btn btn-ghost" onclick="document.getElementById('paymentModal').style.display='none'">Закрыть</button>
-    </div>
-  </div>
-
-  <!-- Модалка Настроек -->
-  <div class="modal" id="settingsModal">
-    <div class="modal-card">
-      <h3>Настройки</h3>
-      <button class="btn btn-ghost" onclick="toggleDarkMode()">🌗 Сменить тему (Светлая/Тёмная)</button>
-      <button class="btn btn-ghost" onclick="document.getElementById('settingsModal').style.display='none'">Закрыть</button>
+      <button class="btn btn-primary" id="payBtn" onclick="payWithYooKassa()">Оплатить картой</button>
+      <button class="btn btn-ghost" onclick="closePayModal()">Позже</button>
     </div>
   </div>
 
@@ -89,23 +69,16 @@
 </div>
 
 <script>
-// ВСТАВЬ ССЫЛКУ НА СВОЙ RENDER (без слэша на конце!)
-const API_BASE = 'https://skyy-server.onrender.com'; 
-
-const state = { scooters: [], userPos: [55.75, 37.61], map: null, markers: {}, selected: null, ride: null, userMarker: null };
+const API_BASE = 'https://skyy-server.onrender.com'; // ТВОЙ СЕРВЕР
+const state = { scooters: [], userPos: [55.75, 37.61], map: null, markers: {}, selected: null, ride: null, userMarker: null, routingControl: null };
 
 function toast(msg){ const t=document.getElementById('toast'); t.textContent=msg; t.classList.add('show'); setTimeout(()=>t.classList.remove('show'), 3000); }
+function closePayModal(){ document.getElementById('paymentModal').style.display='none'; location.reload(); }
 
-// Настройки
-function toggleSettings(){ document.getElementById('settingsModal').style.display='flex'; }
-function toggleDarkMode(){ document.body.classList.toggle('dark'); }
-
-// Карта
 function initMap(){
   state.map = L.map('map', {zoomControl:false}).setView(state.userPos, 15);
   L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(state.map);
   
-  // Получаем позицию пользователя
   navigator.geolocation.watchPosition(p => {
     state.userPos = [p.coords.latitude, p.coords.longitude];
     if(!state.userMarker) {
@@ -117,16 +90,33 @@ function initMap(){
   });
 }
 
-function locateMe(){
-  if(state.userPos) state.map.flyTo(state.userPos, 18);
-  else toast("Ждем GPS...");
+// ПОИСК (Маршрут до самоката)
+function startSearch(){
+  if(state.scooters.length === 0){ toast('Нет самокатов для поиска'); return; }
+  
+  // Для теста ищем маршрут до первого самоката из списка
+  const target = state.scooters[0];
+  
+  if(state.routingControl) state.map.removeControl(state.routingControl);
+
+  state.routingControl = L.Routing.control({
+    waypoints: [
+      L.latLng(state.userPos[0], state.userPos[1]),
+      L.latLng(target.lat, target.lng)
+    ],
+    language: 'ru',
+    show: false, // Скрываем текстовую панель, оставляем только линию на карте
+    lineOptions: { styles: [{color: '#0ea5e9', weight: 6}] },
+    createMarker: function() { return null; } // Не ставим лишние маркеры
+  }).addTo(state.map);
+  
+  toast(`Маршрут построен до ${target.id}`);
 }
 
-// Загрузка самокатов
 async function loadScooters(){
   try {
     const r = await fetch(`${API_BASE}/api/scooters`);
-    if(!r.ok) throw new Error('Нет связи');
+    if(!r.ok) throw new Error('Офлайн');
     const data = await r.json();
     
     Object.values(state.markers).forEach(m => state.map.removeLayer(m));
@@ -145,21 +135,18 @@ async function loadScooters(){
     document.getElementById('serverStatus').textContent = `Сервер онлайн. Самокатов: ${data.length}`;
     document.getElementById('serverStatus').style.color = 'var(--green)';
   } catch(e) {
-    document.getElementById('serverStatus').textContent = 'Сервер офлайн (ожидание...)';
+    document.getElementById('serverStatus').textContent = 'Сервер офлайн';
     document.getElementById('serverStatus').style.color = 'var(--red)';
   }
 }
 
 function renderList(){
   const list = document.getElementById('scooterList');
-  if(state.scooters.length === 0){ list.innerHTML = '<p style="text-align:center;color:var(--muted)">Нет доступных самокатов</p>'; return; }
+  if(state.scooters.length === 0){ list.innerHTML = '<p style="text-align:center;color:var(--muted)">Нет самокатов</p>'; return; }
   list.innerHTML = state.scooters.map(s => `
     <div class="scooter" onclick="selectScooterById('${s.id}')">
       <div style="font-size:24px">🛴</div>
-      <div style="flex:1">
-        <b>${s.id}</b>
-        <div style="font-size:12px;color:var(--muted)">Заряд: ${s.battery}%</div>
-      </div>
+      <div style="flex:1"><b>${s.id}</b><div style="font-size:12px;color:var(--muted)">Заряд: ${s.battery}%</div></div>
     </div>
   `).join('');
 }
@@ -174,40 +161,35 @@ function selectScooter(s){
     <h2 style="margin:0 0 4px">${s.id}</h2>
     <p style="color:var(--muted);margin:0 0 16px">Заряд: ${s.battery}%</p>
     <button class="btn btn-primary" onclick="startRide()">Начать поездку (30 ₽ + 6 ₽/мин)</button>
-    <button class="btn btn-ring" onclick="ringScooter()">🔊 Прозвонить самокат</button>
-    <button class="btn btn-ghost" onclick="location.reload()">Назад к списку</button>
+    <button class="btn btn-ring" onclick="ringScooter()">🔊 Прозвонить</button>
+    <button class="btn btn-ghost" onclick="location.reload()">Назад</button>
   `;
 }
 
 async function ringScooter(){
   if(!state.selected) return;
   toast('Отправляем команду...');
-  try {
-    await fetch(`${API_BASE}/api/scooter/${state.selected.id}/command`, { method: 'POST', body: 'CALL' });
-    toast('Самокат звонит! Ищите звук.');
-  } catch(e) { toast('Ошибка сервера'); }
+  await fetch(`${API_BASE}/api/scooter/${state.selected.id}/command`, { method: 'POST', body: 'CALL' });
+  toast('Самокат звонит! Ищите звук.');
 }
 
 async function startRide(){
   if(!state.selected) return;
-  toast('Разблокировка...');
-  try {
-    await fetch(`${API_BASE}/api/scooter/${state.selected.id}/command`, { method: 'POST', body: 'START' });
-    state.ride = { id: state.selected.id, start: Date.now() };
-    
-    document.getElementById('sheet').innerHTML = `
-      <h2 style="margin:0 0 4px;color:var(--green)">В пути 🚀</h2>
-      <p style="color:var(--muted)">Самокат: ${state.selected.id}</p>
-      <div style="font-size:48px;font-weight:800;margin:20px 0;text-align:center" id="rideTimer">00:00</div>
-      <button class="btn btn-end" onclick="endRide()">Завершить поездку</button>
-    `;
-    
-    setInterval(() => {
-      if(!state.ride) return;
-      const sec = Math.floor((Date.now() - state.ride.start) / 1000);
-      document.getElementById('rideTimer').textContent = `${String(Math.floor(sec/60)).padStart(2,'0')}:${String(sec%60).padStart(2,'0')}`;
-    }, 1000);
-  } catch(e) { toast('Ошибка разблокировки'); }
+  await fetch(`${API_BASE}/api/scooter/${state.selected.id}/command`, { method: 'POST', body: 'START' });
+  state.ride = { id: state.selected.id, start: Date.now() };
+  
+  document.getElementById('sheet').innerHTML = `
+    <h2 style="color:var(--green)">В пути 🚀</h2>
+    <p style="color:var(--muted)">Самокат: ${state.selected.id}</p>
+    <div style="font-size:48px;font-weight:800;margin:20px 0" id="rideTimer">00:00</div>
+    <button class="btn btn-end" onclick="endRide()">Завершить</button>
+  `;
+  
+  setInterval(() => {
+    if(!state.ride) return;
+    const sec = Math.floor((Date.now() - state.ride.start) / 1000);
+    document.getElementById('rideTimer').textContent = `${String(Math.floor(sec/60)).padStart(2,'0')}:${String(sec%60).padStart(2,'0')}`;
+  }, 1000);
 }
 
 async function endRide(){
@@ -216,18 +198,17 @@ async function endRide(){
   const cost = 30 + Math.ceil(sec / 60) * 6;
   
   await fetch(`${API_BASE}/api/scooter/${state.ride.id}/command`, { method: 'POST', body: 'STOP' }).catch(()=>{});
-  
   state.ride = null;
   document.getElementById('payAmount').textContent = cost + ' ₽';
   document.getElementById('paymentModal').style.display = 'flex';
-  
-  // Возвращаем список
-  setTimeout(() => { location.reload(); }, 1000);
 }
 
+// ОПЛАТА ЮKASSA
 async function payWithYooKassa(){
+  const btn = document.getElementById('payBtn');
   const amount = parseInt(document.getElementById('payAmount').textContent);
-  toast('Создаем платеж в ЮKassa...');
+  btn.textContent = 'Загрузка...';
+  btn.disabled = true;
   
   try {
     const r = await fetch(`${API_BASE}/api/pay`, {
@@ -238,19 +219,22 @@ async function payWithYooKassa(){
     const data = await r.json();
     
     if(data.confirmation_url){
-      window.location.href = data.confirmation_url; // Перенаправление на оплату
+      window.location.href = data.confirmation_url; // Переход на реальную страницу ЮKassa
     } else {
-      toast('Ошибка: проверь ключи ЮKassa в коде сервера');
+      toast('Ошибка: проверь ключи ЮKassa на сервере');
+      btn.textContent = 'Оплатить картой';
+      btn.disabled = false;
     }
   } catch(e) {
     toast('Ошибка сети');
+    btn.textContent = 'Оплатить картой';
+    btn.disabled = false;
   }
 }
 
-// Запуск
 initMap();
 loadScooters();
-setInterval(loadScooters, 5000); // Опрос каждые 5 сек
+setInterval(loadScooters, 5000);
 </script>
 </body>
 </html>
