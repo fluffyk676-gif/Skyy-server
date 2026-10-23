@@ -33,8 +33,6 @@
   .marker{background:var(--sky);width:36px;height:36px;border-radius:50%;display:grid;place-items:center;border:3px solid #fff;box-shadow:0 4px 12px rgba(0,0,0,.2);animation:pulse 2s infinite;font-size:18px}
   @keyframes pulse{0%,100%{box-shadow:0 0 0 6px rgba(14,165,233,.3)}50%{box-shadow:0 0 0 12px rgba(14,165,233,.1)}}
   
-  .modal{display:none;position:absolute;inset:0;background:rgba(0,0,0,.6);z-index:999;align-items:center;justify-content:center;padding:20px}
-  .modal-card{background:var(--panel);padding:24px;border-radius:20px;width:100%;max-width:320px;text-align:center}
   .toast{position:absolute;bottom:120px;left:50%;transform:translateX(-50%);background:#000;color:#fff;padding:12px;border-radius:8px;z-index:900;opacity:0;transition:.3s}
   .toast.show{opacity:1}
 </style>
@@ -55,17 +53,6 @@
     <div style="color:var(--muted);font-size:12px;text-align:center;margin-top:10px" id="serverStatus">Подключение...</div>
   </div>
 
-  <!-- Модалка Оплаты -->
-  <div class="modal" id="paymentModal">
-    <div class="modal-card">
-      <h3>Поездка завершена</h3>
-      <p style="color:var(--muted);font-size:14px">К оплате:</p>
-      <div style="font-size:36px;font-weight:800;margin:10px 0 20px" id="payAmount">0 ₽</div>
-      <button class="btn btn-primary" onclick="payWithSber()">Оплатить по СБП</button>
-      <button class="btn btn-ghost" onclick="closePayModal()">Позже</button>
-    </div>
-  </div>
-
   <div class="toast" id="toast"></div>
 </div>
 
@@ -74,7 +61,6 @@ const API_BASE = 'https://skyy-server.onrender.com';
 const state = { scooters: [], userPos: [55.75, 37.61], map: null, markers: {}, selected: null, ride: null, userMarker: null };
 
 function toast(msg){ const t=document.getElementById('toast'); t.textContent=msg; t.classList.add('show'); setTimeout(()=>t.classList.remove('show'), 3000); }
-function closePayModal(){ document.getElementById('paymentModal').style.display='none'; location.reload(); }
 
 function initMap(){
   state.map = L.map('map', {zoomControl:false}).setView(state.userPos, 14);
@@ -173,19 +159,9 @@ async function startRide(){
 
 async function endRide(){
   if(!state.ride) return;
-  const sec = Math.floor((Date.now() - state.ride.start) / 1000);
-  const cost = 30 + Math.ceil(sec / 60) * 6;
-  
   await fetch(`${API_BASE}/api/scooter/${state.ride.id}/command`, { method: 'POST', body: 'STOP' }).catch(()=>{});
   state.ride = null;
-  document.getElementById('payAmount').textContent = cost + ' ₽';
-  document.getElementById('paymentModal').style.display = 'flex';
-}
-
-// Оплата (Ссылку Сбера вставим позже)
-function payWithSber(){
-  toast('Оплата временно недоступна (нет ссылки)');
-  closePayModal();
+  location.reload();
 }
 
 initMap();
