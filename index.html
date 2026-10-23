@@ -8,15 +8,10 @@
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <style>
-  :root{
-    --bg:#121212; --card:#1c1c1e; --card-2:#2d2d2d;
-    --ink:#ffffff; --muted:#888888;
-    --accent:#ff5a1f; --green:#22c55e;
-  }
+  :root{ --bg:#121212; --card:#1c1c1e; --card-2:#2d2d2d; --ink:#ffffff; --muted:#888888; --accent:#ff5a1f; --green:#22c55e; }
   *{box-sizing:border-box; -webkit-tap-highlight-color:transparent; font-family:-apple-system,sans-serif}
   body{margin:0; background:var(--bg); color:var(--ink); overflow:hidden}
   #app{position:relative; height:100dvh; max-width:480px; margin:0 auto; overflow:hidden}
-  
   #map{position:absolute; inset:0; z-index:1; background:#000}
   .leaflet-tile-pane { filter: invert(1) hue-rotate(180deg) brightness(0.85) contrast(1.2); }
 
@@ -52,11 +47,9 @@
   .scooter-list-item{display:flex; gap:12px; align-items:center; padding:12px; border-radius:16px; cursor:pointer;}
   .scooter-list-item:hover{background:var(--card-2)}
 
-  /* Экраны (полноэкранные) */
   .screen{display:none; position:absolute; inset:0; background:var(--bg); z-index:3000; flex-direction:column; padding:24px; overflow-y:auto; animation:slideIn 0.3s}
   @keyframes slideIn { from { transform: translateX(100%); } to { transform: translateX(0); } }
   .screen.active{display:flex}
-  
   .screen-header{display:flex; align-items:center; gap:16px; margin-bottom:24px;}
   .back-btn{width:44px; height:44px; background:var(--card-2); border-radius:14px; display:grid; place-items:center; font-size:20px; border:none; color:#fff; cursor:pointer}
   .screen h1{margin:0; font-size:24px}
@@ -69,7 +62,6 @@
   .menu-item{display:flex; justify-content:space-between; align-items:center; padding:20px 0; border-bottom:1px solid var(--card-2); cursor:pointer; font-size:16px; font-weight:500}
   .menu-item:last-child{border-bottom:none}
 
-  /* Модалки (Профиль) */
   .modal{display:none; position:absolute; inset:0; background:rgba(0,0,0,0.8); z-index:2000; align-items:flex-end; justify-content:center;}
   .modal.active{display:flex}
   .modal-content{background:var(--card); width:100%; max-width:480px; border-radius:24px 24px 0 0; padding:24px; padding-bottom:calc(24px + env(safe-area-inset-bottom));}
@@ -109,125 +101,59 @@
     <div id="detailPanel" style="display:none; flex-direction:column;"></div>
   </div>
 
-  <!-- ЭКРАН: МЕНЮ -->
+  <!-- ЭКРАНЫ -->
   <div class="screen" id="menuScreen">
-    <div class="screen-header">
-      <button class="back-btn" onclick="closeScreen('menuScreen')">←</button>
-      <h1>Меню</h1>
-    </div>
+    <div class="screen-header"><button class="back-btn" onclick="closeScreen('menuScreen')">←</button><h1>Меню</h1></div>
     <div class="menu-item" onclick="openScreen('tariffsScreen')"><span>💰 Тарифы и подписки</span> <span>→</span></div>
     <div class="menu-item" onclick="openScreen('helpScreen')"><span>🆘 Помощь и поддержка</span> <span>→</span></div>
     <div class="menu-item" onclick="openScreen('safetyScreen')"><span>🛡️ Безопасность</span> <span>→</span></div>
     <div class="menu-item" onclick="openScreen('aboutScreen')"><span>ℹ️ О сервисе Skyy</span> <span>→</span></div>
   </div>
 
-  <!-- ЭКРАН: ТАРИФЫ -->
   <div class="screen" id="tariffsScreen">
-    <div class="screen-header">
-      <button class="back-btn" onclick="closeScreen('tariffsScreen')">←</button>
-      <h1>Тарифы</h1>
-    </div>
-    <div class="content-box">
-      <h3>Старт поездки: 55 ₽</h3>
-      <p>Включает разблокировку самоката. Списывается сразу после нажатия «Старт».</p>
-    </div>
-    <div class="content-box">
-      <h3>Поминутная оплата: 7 ₽/мин</h3>
-      <p>Списание происходит каждую минуту поездки. Минимальная стоимость поездки — 55 ₽.</p>
-    </div>
-    <div class="content-box">
-      <h3>Подписка «Безлимит»</h3>
-      <p>Пока недоступна. Скоро вы сможете кататься без ограничений по времени за фиксированную плату.</p>
-    </div>
+    <div class="screen-header"><button class="back-btn" onclick="closeScreen('tariffsScreen')">←</button><h1>Тарифы</h1></div>
+    <div class="content-box"><h3>Старт: 55 ₽</h3><p>Списывается сразу после разблокировки.</p></div>
+    <div class="content-box"><h3>Поминутно: 7 ₽/мин</h3><p>Списание каждую минуту поездки.</p></div>
   </div>
 
-  <!-- ЭКРАН: ПОМОЩЬ -->
   <div class="screen" id="helpScreen">
-    <div class="screen-header">
-      <button class="back-btn" onclick="closeScreen('helpScreen')">←</button>
-      <h1>Помощь</h1>
-    </div>
-    <div class="content-box">
-      <h3>Что делать, если самокат не разблокируется?</h3>
-      <p>1. Проверьте интернет на телефоне.<br>2. Убедитесь, что на самокате горит индикатор.<br>3. Попробуйте отсканировать QR-код заново.</p>
-    </div>
-    <div class="content-box">
-      <h3>Как связаться с поддержкой?</h3>
-      <p>Телефон: 8 (800) 555-35-35<br>Почта: help@skyy.ru</p>
-    </div>
+    <div class="screen-header"><button class="back-btn" onclick="closeScreen('helpScreen')">←</button><h1>Помощь</h1></div>
+    <div class="content-box"><h3>Самокат не едет?</h3><p>Проверьте интернет и баланс. Если не помогло — напишите в чат.</p></div>
   </div>
 
-  <!-- ЭКРАН: БЕЗОПАСНОСТЬ -->
   <div class="screen" id="safetyScreen">
-    <div class="screen-header">
-      <button class="back-btn" onclick="closeScreen('safetyScreen')">←</button>
-      <h1>Безопасность</h1>
-    </div>
-    <div class="content-box">
-      <h3>Правила поездок</h3>
-      <ul>
-        <li>Передвигайтесь только по велосипедным дорожкам или обочине.</li>
-        <li>Не разгоняйтесь выше 25 км/ч.</li>
-        <li>Надевайте шлем и защиту.</li>
-        <li>Не катайтесь по мокрой плитке или песку.</li>
-      </ul>
-    </div>
-    <div class="content-box">
-      <h3>Ограничения</h3>
-      <p>Запрещено управлять самокатом в состоянии алкогольного опьянения. Запрещена езда по проезжей части без сопровождения взрослых.</p>
-    </div>
+    <div class="screen-header"><button class="back-btn" onclick="closeScreen('safetyScreen')">←</button><h1>Безопасность</h1></div>
+    <div class="content-box"><h3>Правила</h3><ul><li>Не превышайте 25 км/ч</li><li>Надевайте шлем</li><li>Уступайте пешеходам</li></ul></div>
   </div>
 
-  <!-- ЭКРАН: О СЕРВИСЕ -->
   <div class="screen" id="aboutScreen">
-    <div class="screen-header">
-      <button class="back-btn" onclick="closeScreen('aboutScreen')">←</button>
-      <h1>О сервисе</h1>
-    </div>
-    <div class="content-box">
-      <h3>Skyy Mobility</h3>
-      <p>Мы делаем поездки по городу простыми и доступными. Наш парк постоянно обновляется, а сервис работает 24/7.</p>
-      <p>Версия приложения: 1.0.0 (Beta)</p>
-    </div>
+    <div class="screen-header"><button class="back-btn" onclick="closeScreen('aboutScreen')">←</button><h1>О сервисе</h1></div>
+    <div class="content-box"><h3>Skyy Mobility</h3><p>Сервис кикшеринга. Версия 1.0.0</p></div>
   </div>
 
-  <!-- МОДАЛКА: ПРОФИЛЬ -->
+  <div class="screen" id="historyScreen">
+    <div class="screen-header"><button class="back-btn" onclick="closeScreen('historyScreen')">←</button><h1>История</h1></div>
+    <div class="content-box" style="text-align:center;"><div style="font-size:40px; margin-bottom:16px;">🛴</div><h3>Пока пусто</h3><p>Здесь будут ваши поездки.</p></div>
+  </div>
+
+  <!-- МОДАЛКА ПРОФИЛЯ -->
   <div class="modal" id="profileModal">
     <div class="modal-content">
-      <div class="modal-header">
-        <h2>Профиль</h2>
-        <button class="close-btn" onclick="closeModal('profileModal')">✕</button>
-      </div>
-      
+      <div class="modal-header"><h2>Профиль</h2><button class="close-btn" onclick="closeModal('profileModal')">✕</button></div>
       <div id="profileLoggedIn" style="display:none;">
         <div style="background:var(--card-2); padding:16px; border-radius:16px; margin-bottom:24px;">
           <div style="font-size:18px; font-weight:700;" id="userPhoneDisplay">+7 999 000-00-00</div>
           <div style="color:var(--green); font-size:14px; margin-top:4px;">Авторизован</div>
         </div>
         <div class="menu-item" onclick="openScreen('historyScreen')"><span>📄 История поездок</span> <span>→</span></div>
-        <div class="menu-item" onclick="toast('Выбрать карту: МИР *4235')"><span>💳 Способы оплаты</span> <span>→</span></div>
-        <div class="menu-item" onclick="toast('Настройки уведомлений')"><span>⚙️ Настройки</span> <span>→</span></div>
+        <div class="menu-item" onclick="toast('Способ оплаты')"><span>💳 Способы оплаты</span> <span>→</span></div>
         <button class="btn btn-book" style="width:100%; margin-top:24px;" onclick="logout()">Выйти</button>
       </div>
-
       <div id="profileLoggedOut">
         <p style="color:var(--muted); margin:0 0 16px;">Войдите, чтобы арендовать самокат</p>
         <input type="tel" id="phoneInput" placeholder="+7 999 000-00-00">
         <button class="btn btn-start" style="width:100%;" onclick="login()">Войти по номеру</button>
       </div>
-    </div>
-  </div>
-
-  <!-- ЭКРАН: ИСТОРИЯ (из профиля) -->
-  <div class="screen" id="historyScreen">
-    <div class="screen-header">
-      <button class="back-btn" onclick="closeScreen('historyScreen')">←</button>
-      <h1>История поездок</h1>
-    </div>
-    <div class="content-box" style="text-align:center;">
-      <div style="font-size:40px; margin-bottom:16px;">🛴</div>
-      <h3>Пока пусто</h3>
-      <p>Ваши поездки будут отображаться здесь. Самое время начать первую!</p>
     </div>
   </div>
 
@@ -240,15 +166,11 @@ const state = { scooters: [], userPos: [55.75, 37.61], map: null, markers: {}, s
 
 function toast(msg){ const t=document.getElementById('toast'); t.textContent=msg; t.classList.add('show'); setTimeout(()=>t.classList.remove('show'), 3000); }
 
-// Управление экранами (сдвиг справа)
 function openScreen(id){ document.getElementById(id).classList.add('active'); }
 function closeScreen(id){ document.getElementById(id).classList.remove('active'); }
-
-// Управление модалками (снизу)
 function openModal(id){ document.getElementById(id).classList.add('active'); }
 function closeModal(id){ document.getElementById(id).classList.remove('active'); }
 
-// Профиль
 function openProfile(){
   if(state.isLoggedIn){
     document.getElementById('profileLoggedIn').style.display = 'block';
@@ -276,14 +198,11 @@ function logout(){
   closeModal('profileModal');
   toast('Вы вышли');
 }
-
 if(localStorage.getItem('skyy_phone')) state.isLoggedIn = true;
 
-// Карта
 function initMap(){
   state.map = L.map('map', {zoomControl:false}).setView(state.userPos, 16);
   L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(state.map);
-  
   navigator.geolocation.getCurrentPosition((pos) => {
     state.userPos = [pos.coords.latitude, pos.coords.longitude];
     state.map.setView(state.userPos, 17);
@@ -292,7 +211,6 @@ function initMap(){
 }
 function locateMe(){ if(state.userPos) state.map.flyTo(state.userPos, 18); }
 
-// Свайп
 let startY = 0; let currentY = 0;
 const sheet = document.getElementById('sheet');
 const grabber = document.getElementById('grabberArea');
@@ -308,7 +226,6 @@ grabber.addEventListener('touchend', () => {
   else sheet.style.transform = 'translateY(0)';
 });
 
-// Данные
 async function loadScooters(){
   try {
     const r = await fetch(`${API_BASE}/api/scooters`);
@@ -327,9 +244,7 @@ async function loadScooters(){
     renderList();
     document.getElementById('serverStatus').textContent = `Самокатов онлайн: ${data.length}`;
     document.getElementById('serverStatus').style.color = 'var(--green)';
-  } catch(e) {
-    document.getElementById('serverStatus').textContent = 'Ошибка сети';
-  }
+  } catch(e) { document.getElementById('serverStatus').textContent = 'Ошибка сети'; }
 }
 
 function renderList(filterText = ''){
@@ -338,7 +253,6 @@ function renderList(filterText = ''){
   let filtered = state.scooters;
   if(filterText) filtered = state.scooters.filter(s => s.id.toLowerCase().includes(filterText.toLowerCase()));
   if(filtered.length === 0){ list.innerHTML = '<p style="text-align:center;color:var(--muted);margin-top:20px;">Самокатов не найдено</p>'; return; }
-  
   list.innerHTML = filtered.map(s => `
     <div class="scooter-list-item" onclick="selectScooterById('${s.id}')">
       <div style="font-size:32px; width:50px; text-align:center;">🛴</div>
@@ -355,16 +269,12 @@ function selectScooter(s){
   state.selected = s;
   state.map.flyTo([s.lat, s.lng], 18);
   sheet.style.transform = 'translateY(0)';
-  
   document.getElementById('mainPanel').style.display = 'none';
   document.getElementById('detailPanel').style.display = 'flex';
   document.getElementById('detailPanel').innerHTML = `
     <div class="scooter-card">
       <div class="scooter-img">🛴</div>
-      <div class="scooter-info">
-        <h2>${s.id}</h2><p>Ninebot Max</p>
-        <div style="color:var(--green); font-weight:700; margin-top:4px;">55 ₽ старт + 7 ₽/мин</div>
-      </div>
+      <div class="scooter-info"><h2>${s.id}</h2><p>Ninebot Max</p><div style="color:var(--green); font-weight:700; margin-top:4px;">55 ₽ старт + 7 ₽/мин</div></div>
       <button class="sound-btn" onclick="ringScooter()">🔊</button>
     </div>
     <div class="btn-row">
