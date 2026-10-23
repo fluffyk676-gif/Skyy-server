@@ -6,34 +6,38 @@
 <title>Skyy — самокаты</title>
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-<!-- Библиотека для построения маршрутов (поиска) -->
 <link rel="stylesheet" href="https://unpkg.com/leaflet-routing-machine@latest/dist/leaflet-routing-machine.css" />
 <script src="https://unpkg.com/leaflet-routing-machine@latest/dist/leaflet-routing-machine.js"></script>
 
 <style>
   :root{--sky:#0ea5e9;--bg:#f8fafc;--panel:#fff;--ink:#0f172a;--muted:#64748b;--green:#22c55e;--red:#ef4444;--amber:#f59e0b;--shadow:0 10px 30px rgba(2,132,199,.15)}
   body{margin:0;font-family:-apple-system,sans-serif;background:var(--bg);color:var(--ink);overflow:hidden}
+  body.dark { --bg:#0f172a; --panel:#1e293b; --ink:#f1f5f9; --muted:#94a3b8; }
   #app{position:relative;height:100dvh;max-width:480px;margin:0 auto;overflow:hidden}
   #map{position:absolute;inset:0;z-index:1;background:#eef2f7}
   
-  .topbar{position:absolute;top:0;left:0;right:0;z-index:500;padding:14px;display:flex;gap:8px}
+  .topbar{position:absolute;top:0;left:0;right:0;z-index:500;padding:14px;display:flex;gap:8px;pointer-events:none}
+  .topbar > * { pointer-events: auto; }
   .logo{background:var(--panel);border-radius:14px;box-shadow:var(--shadow);padding:12px;font-weight:800;font-size:18px}
   .search-btn{flex:1;background:var(--panel);border:none;border-radius:14px;box-shadow:var(--shadow);text-align:left;padding:0 16px;color:var(--muted);font-size:14px;cursor:pointer}
+  .icon-btn{width:44px;height:44px;background:var(--panel);border:none;border-radius:14px;box-shadow:var(--shadow);font-size:18px;display:grid;place-items:center;cursor:pointer}
   
   .sheet{position:absolute;left:0;right:0;bottom:0;z-index:500;background:var(--panel);border-radius:24px 24px 0 0;padding:20px;box-shadow:0 -10px 40px rgba(0,0,0,.1);max-height:70vh;display:flex;flex-direction:column}
   .scooter{display:flex;align-items:center;gap:12px;padding:12px;border-radius:14px;cursor:pointer;border:2px solid transparent}
-  .scooter:hover{background:#f1f5f9}
+  .scooter:hover{background:rgba(0,0,0,0.05)}
+  body.dark .scooter:hover{background:rgba(255,255,255,0.05)}
   
   .btn{width:100%;padding:16px;border:none;border-radius:14px;font-weight:700;font-size:16px;cursor:pointer;margin-top:10px}
   .btn-primary{background:var(--sky);color:#fff}
-  .btn-ghost{background:#f1f5f9;color:var(--ink)}
+  .btn-ghost{background:rgba(0,0,0,0.05);color:var(--ink)}
+  body.dark .btn-ghost{background:rgba(255,255,255,0.1)}
   .btn-ring{background:var(--amber);color:#fff;margin-top:8px}
-  .btn-end{background:var(--red);color:#fff}
+  .btn-end{background:var(--red);color:#fff;margin-top:20px}
   
-  .marker{background:var(--sky);width:36px;height:36px;border-radius:50%;display:grid;place-items:center;border:3px solid #fff;box-shadow:0 4px 12px rgba(0,0,0,.2);font-size:18px;animation:pulse 2s infinite}
+  .marker{background:var(--sky);width:36px;height:36px;border-radius:50%;display:grid;place-items:center;border:3px solid #fff;box-shadow:0 4px 12px rgba(0,0,0,.2);animation:pulse 2s infinite;font-size:18px}
   @keyframes pulse{0%,100%{box-shadow:0 0 0 6px rgba(14,165,233,.3)}50%{box-shadow:0 0 0 12px rgba(14,165,233,.1)}}
   
-  .modal{display:none;position:absolute;inset:0;background:rgba(0,0,0,.7);z-index:999;align-items:center;justify-content:center;padding:20px}
+  .modal{display:none;position:absolute;inset:0;background:rgba(0,0,0,.6);z-index:999;align-items:center;justify-content:center;padding:20px}
   .modal-card{background:var(--panel);padding:24px;border-radius:20px;width:100%;max-width:320px;text-align:center}
   .toast{position:absolute;bottom:120px;left:50%;transform:translateX(-50%);background:#000;color:#fff;padding:12px;border-radius:8px;z-index:900;opacity:0;transition:.3s}
   .toast.show{opacity:1}
@@ -46,6 +50,8 @@
   <div class="topbar">
     <div class="logo">Skyy</div>
     <button class="search-btn" onclick="startSearch()">🔍 Куда поедем?</button>
+    <button class="icon-btn" onclick="locateMe()">📍</button>
+    <button class="icon-btn" onclick="toggleSettings()">⚙️</button>
   </div>
 
   <div class="sheet" id="sheet">
@@ -60,8 +66,18 @@
       <h3>Поездка завершена</h3>
       <p style="color:var(--muted);font-size:14px">К оплате:</p>
       <div style="font-size:36px;font-weight:800;margin:10px 0 20px" id="payAmount">0 ₽</div>
-      <button class="btn btn-primary" id="payBtn" onclick="payWithYooKassa()">Оплатить картой</button>
+      <!-- Ссылка на СБП Сбера вставляется в функцию payWithYooKassa ниже -->
+      <button class="btn btn-primary" onclick="payWithYooKassa()">Оплатить по СБП</button>
       <button class="btn btn-ghost" onclick="closePayModal()">Позже</button>
+    </div>
+  </div>
+
+  <!-- Модалка Настроек -->
+  <div class="modal" id="settingsModal">
+    <div class="modal-card">
+      <h3>Настройки</h3>
+      <button class="btn btn-ghost" onclick="toggleDarkMode()">🌗 Сменить тему</button>
+      <button class="btn btn-ghost" onclick="document.getElementById('settingsModal').style.display='none'">Закрыть</button>
     </div>
   </div>
 
@@ -69,32 +85,56 @@
 </div>
 
 <script>
-const API_BASE = 'https://skyy-server.onrender.com'; // ТВОЙ СЕРВЕР
-const state = { scooters: [], userPos: [55.75, 37.61], map: null, markers: {}, selected: null, ride: null, userMarker: null, routingControl: null };
+const API_BASE = 'https://skyy-server.onrender.com'; 
+const state = { scooters: [], userPos: null, map: null, markers: {}, selected: null, ride: null, userMarker: null, routingControl: null };
 
 function toast(msg){ const t=document.getElementById('toast'); t.textContent=msg; t.classList.add('show'); setTimeout(()=>t.classList.remove('show'), 3000); }
 function closePayModal(){ document.getElementById('paymentModal').style.display='none'; location.reload(); }
+function toggleSettings(){ document.getElementById('settingsModal').style.display='flex'; }
+function toggleDarkMode(){ document.body.classList.toggle('dark'); }
 
+// 1. Инициализация карты и запрос GPS
 function initMap(){
-  state.map = L.map('map', {zoomControl:false}).setView(state.userPos, 15);
+  // Ставим временный центр (Москва), пока не получим GPS
+  state.map = L.map('map', {zoomControl:false}).setView([55.75, 37.61], 14);
   L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(state.map);
   
-  navigator.geolocation.watchPosition(p => {
-    state.userPos = [p.coords.latitude, p.coords.longitude];
-    if(!state.userMarker) {
-      state.userMarker = L.circleMarker(state.userPos, {radius: 8, color: '#fff', weight: 3, fillColor: '#0ea5e9', fillOpacity: 1}).addTo(state.map);
-      state.map.setView(state.userPos, 16);
-    } else {
-      state.userMarker.setLatLng(state.userPos);
-    }
-  });
+  if (navigator.geolocation) {
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        state.userPos = [pos.coords.latitude, pos.coords.longitude];
+        state.map.setView(state.userPos, 16);
+        
+        if(!state.userMarker) {
+          state.userMarker = L.circleMarker(state.userPos, {radius: 8, color: '#fff', weight: 3, fillColor: '#0ea5e9', fillOpacity: 1}).addTo(state.map);
+        } else {
+          state.userMarker.setLatLng(state.userPos);
+        }
+
+        // Слежение за перемещением
+        navigator.geolocation.watchPosition(p => {
+          state.userPos = [p.coords.latitude, p.coords.longitude];
+          if(state.userMarker) state.userMarker.setLatLng(state.userPos);
+        });
+      },
+      (err) => {
+        toast("Разрешите геолокацию для определения позиции!");
+      },
+      { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
+    );
+  }
 }
 
-// ПОИСК (Маршрут до самоката)
+function locateMe(){
+  if(state.userPos) state.map.flyTo(state.userPos, 18);
+  else toast("Ожидание GPS...");
+}
+
+// 2. Построение маршрута
 function startSearch(){
   if(state.scooters.length === 0){ toast('Нет самокатов для поиска'); return; }
+  if(!state.userPos) { toast('Ждем ваш GPS...'); return; }
   
-  // Для теста ищем маршрут до первого самоката из списка
   const target = state.scooters[0];
   
   if(state.routingControl) state.map.removeControl(state.routingControl);
@@ -105,14 +145,15 @@ function startSearch(){
       L.latLng(target.lat, target.lng)
     ],
     language: 'ru',
-    show: false, // Скрываем текстовую панель, оставляем только линию на карте
+    show: false,
     lineOptions: { styles: [{color: '#0ea5e9', weight: 6}] },
-    createMarker: function() { return null; } // Не ставим лишние маркеры
+    createMarker: function() { return null; }
   }).addTo(state.map);
   
-  toast(`Маршрут построен до ${target.id}`);
+  toast(`Маршрут до ${target.id}`);
 }
 
+// 3. Загрузка самокатов
 async function loadScooters(){
   try {
     const r = await fetch(`${API_BASE}/api/scooters`);
@@ -142,7 +183,7 @@ async function loadScooters(){
 
 function renderList(){
   const list = document.getElementById('scooterList');
-  if(state.scooters.length === 0){ list.innerHTML = '<p style="text-align:center;color:var(--muted)">Нет самокатов</p>'; return; }
+  if(state.scooters.length === 0){ list.innerHTML = '<p style="text-align:center;color:var(--muted)">Нет доступных самокатов</p>'; return; }
   list.innerHTML = state.scooters.map(s => `
     <div class="scooter" onclick="selectScooterById('${s.id}')">
       <div style="font-size:24px">🛴</div>
@@ -170,7 +211,7 @@ async function ringScooter(){
   if(!state.selected) return;
   toast('Отправляем команду...');
   await fetch(`${API_BASE}/api/scooter/${state.selected.id}/command`, { method: 'POST', body: 'CALL' });
-  toast('Самокат звонит! Ищите звук.');
+  toast('Самокат звонит!');
 }
 
 async function startRide(){
@@ -203,35 +244,20 @@ async function endRide(){
   document.getElementById('paymentModal').style.display = 'flex';
 }
 
-// ОПЛАТА ЮKASSA
-async function payWithYooKassa(){
-  const btn = document.getElementById('payBtn');
+// 4. ОПЛАТА (Сбер/СБП)
+function payWithYooKassa(){
   const amount = parseInt(document.getElementById('payAmount').textContent);
-  btn.textContent = 'Загрузка...';
-  btn.disabled = true;
   
-  try {
-    const r = await fetch(`${API_BASE}/api/pay`, {
-      method: 'POST',
-      headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify({ amount: amount, description: `Оплата поездки Skyy` })
-    });
-    const data = await r.json();
-    
-    if(data.confirmation_url){
-      window.location.href = data.confirmation_url; // Переход на реальную страницу ЮKassa
-    } else {
-      toast('Ошибка: проверь ключи ЮKassa на сервере');
-      btn.textContent = 'Оплатить картой';
-      btn.disabled = false;
-    }
-  } catch(e) {
-    toast('Ошибка сети');
-    btn.textContent = 'Оплатить картой';
-    btn.disabled = false;
-  }
+  // ВСТАВЬ СЮДА СВОЮ ССЫЛКУ ИЗ СБЕРА!
+  const sberLink = "https://online.sberbank.ru/CSAFront/api/..."; 
+  
+  window.open(sberLink, '_blank');
+  document.getElementById('paymentModal').style.display = 'none';
+  toast('Ожидаем оплату по СБП...');
+  setTimeout(() => { location.reload(); }, 2000);
 }
 
+// Запуск
 initMap();
 loadScooters();
 setInterval(loadScooters, 5000);
