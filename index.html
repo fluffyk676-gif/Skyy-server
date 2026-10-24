@@ -10,37 +10,25 @@
   :root{ --bg:#121212; --card:#1c1c1e; --card-2:#2d2d2d; --accent:#ff5a1f; --green:#22c55e; --muted:#888; }
   body{ --bg-theme: #121212; --card-theme: #1c1c1e; --text-theme: #fff; margin:0; background:var(--bg-theme); color:var(--text-theme); overflow:hidden; font-family:sans-serif; transition: 0.3s; }
   #app{position:relative; height:100dvh; max-width:480px; margin:0 auto; overflow:hidden}
-  
   #map{position:absolute; inset:0; z-index:1; background:#000}
-  .leaflet-tile-pane { filter: invert(1) hue-rotate(180deg) brightness(0.85) contrast(1.2); transition: 0.3s; }
-  body.light-theme .leaflet-tile-pane { filter: none; }
-  body.light-theme { --bg-theme: #f8fafc; --card-theme: #fff; --text-theme: #0f172a; }
-  
+  .leaflet-tile-pane { filter: invert(1) hue-rotate(180deg) brightness(0.85) contrast(1.2); }
   .topbar{position:absolute; top:0; left:0; right:0; z-index:500; padding:16px; display:flex; gap:8px; pointer-events:none; align-items:center}
   .topbar > * { pointer-events: auto; }
   .btn-icon{width:44px; height:44px; background:var(--card); border-radius:14px; display:grid; place-items:center; font-size:20px; color:var(--text-theme); border:none; cursor:pointer;}
   .search-bar{flex:1; background:var(--card); border-radius:14px; padding:12px; font-size:14px; color:var(--text-theme); border:none; outline:none;}
-  
-  .sheet{position:absolute; left:0; right:0; bottom:0; z-index:500; background:var(--card); border-radius:24px 24px 0 0; padding:20px; max-height:85vh; display:flex; flex-direction:column; transition: transform 0.4s cubic-bezier(0.2, 0.8, 0.2, 1); box-shadow: 0 -5px 20px rgba(0,0,0,0.3);}
+  .sheet{position:absolute; left:0; right:0; bottom:0; z-index:500; background:var(--card); border-radius:24px 24px 0 0; padding:20px; max-height:85vh; display:flex; flex-direction:column; transition: transform 0.4s; box-shadow: 0 -5px 20px rgba(0,0,0,0.3);}
   .grabber{width:40px; height:5px; background:#555; border-radius:3px; margin:0 auto 15px;}
-  
-  .btn{width:100%; padding:16px; border:none; border-radius:16px; font-size:16px; font-weight:700; cursor:pointer; text-align:center; background:var(--accent); color:#fff; margin-top:10px; transition: 0.2s;}
-  .btn:active { transform: scale(0.98); }
+  .btn{width:100%; padding:16px; border:none; border-radius:16px; font-size:16px; font-weight:700; cursor:pointer; text-align:center; background:var(--accent); color:#fff; margin-top:10px;}
   .btn-sec{background:var(--card-2); color:var(--text-theme);}
-  
   .modal{display:none; position:absolute; inset:0; background:rgba(0,0,0,0.8); z-index:1000; align-items:flex-end; justify-content:center; opacity: 0; transition: opacity 0.3s;}
   .modal.active{display:flex; opacity: 1;}
   .modal-content{background:var(--card); width:100%; border-radius:24px 24px 0 0; padding:24px; text-align:center; max-height:90vh; overflow-y:auto; transform: translateY(100%); transition: transform 0.3s;}
   .modal.active .modal-content { transform: translateY(0); }
-  
   input, textarea{width:100%; padding:16px; background:var(--card-2); border:none; border-radius:12px; color:var(--text-theme); margin-bottom:12px; font-size:16px; box-sizing:border-box;}
-  
   .marker{background:var(--accent); width:36px; height:36px; border-radius:50% 50% 50% 0; transform:rotate(-45deg); display:grid; place-items:center; border:3px solid #fff; cursor:pointer;}
   .marker span{transform:rotate(45deg); font-size:18px;}
-  
   .tariff-row{display:flex; justify-content:space-between; align-items:center; padding:15px; background:var(--card-2); border-radius:12px; margin-bottom:10px; cursor:pointer; border:2px solid transparent;}
   .tariff-row.selected{border-color:var(--accent);}
-  
   .user-dot { width: 18px; height: 18px; border-radius: 50%; background: #0ea5e9; border: 3px solid #fff; box-shadow: 0 0 0 5px rgba(14,165,233,0.3); }
   .scooter-item { padding: 12px; border-bottom: 1px solid #333; display: flex; justify-content: space-between; align-items: center; cursor: pointer;}
 </style>
@@ -50,18 +38,17 @@
   <div id="map"></div>
   <div class="topbar">
     <div style="font-weight:800; font-size:20px;">Skyy</div>
-    <input type="text" id="searchInput" class="search-bar" placeholder="🔍 Поиск самоката..." oninput="filterScooters()">
+    <input type="text" id="searchInput" class="search-bar" placeholder="🔍 Поиск..." oninput="filterScooters()">
     <button class="btn-icon" onclick="openProfile()">👤</button>
   </div>
   
-  <div class="sheet" id="sheet">
+  <div class="sheet">
     <div class="grabber"></div>
-    <h2 style="margin:0 0 10px;">Самокаты рядом</h2>
+    <h2 style="margin:0 0 10px;">Самокаты</h2>
     <div id="scooterList" style="overflow-y:auto; max-height:40vh; margin-bottom:10px;"></div>
     <div style="font-size:12px; color:var(--muted); text-align:center;" id="serverStatus">Подключение...</div>
   </div>
 
-  <!-- ТАРИФЫ -->
   <div class="modal" id="tariffModal">
     <div class="modal-content">
       <h2>Выберите тариф</h2>
@@ -71,15 +58,11 @@
       <div class="tariff-row" onclick="selectTariff('30min', this)">
         <div><b>На 30 минут</b><br><small style="color:var(--muted)">150 ₽ фикс</small></div>
       </div>
-      <div class="tariff-row" onclick="selectTariff('60min', this)">
-        <div><b>На 1 час</b><br><small style="color:var(--muted)">250 ₽ фикс</small></div>
-      </div>
       <button class="btn" onclick="confirmTariff()">Поехали!</button>
       <button class="btn btn-sec" onclick="document.getElementById('tariffModal').classList.remove('active')">Отмена</button>
     </div>
   </div>
 
-  <!-- ПОЕЗДКА -->
   <div class="modal" id="rideModal">
     <div class="modal-content">
       <h2 style="color:var(--green);" id="rideStatus">В пути</h2>
@@ -88,22 +71,10 @@
         <button class="btn btn-sec" onclick="toggleLight()">💡 Фонарь</button>
         <button class="btn btn-sec" onclick="togglePause()" id="pauseBtn">⏸ Пауза</button>
       </div>
-      <button class="btn" style="background:#ef4444; margin-top:15px;" onclick="openEndRide()">Завершить</button>
+      <button class="btn" style="background:#ef4444; margin-top:15px;" onclick="endRide()">Завершить</button>
     </div>
   </div>
 
-  <!-- ФОТО -->
-  <div class="modal" id="endRideModal">
-    <div class="modal-content">
-      <h2 style="color:var(--accent);">Завершение</h2>
-      <p style="color:var(--muted); margin-bottom:15px;">Привяжите самокат к ограде и сфотографируйте.</p>
-      <input type="file" id="parkingPhoto" accept="image/*" capture="environment" style="background:#fff; color:#000;">
-      <button class="btn" onclick="submitEndRide()">Завершить</button>
-      <button class="btn btn-sec" onclick="document.getElementById('endRideModal').classList.remove('active')">Отмена</button>
-    </div>
-  </div>
-
-  <!-- ПРОФИЛЬ -->
   <div class="modal" id="profileModal">
     <div class="modal-content">
       <h2>Личный кабинет</h2>
@@ -119,14 +90,12 @@
         <h1 style="font-size:42px; margin:10px 0; color:var(--green);" id="userBalance">0 ₽</h1>
         <button class="btn" onclick="topUp()">Пополнить</button>
         <button class="btn btn-sec" onclick="openSupport()">💬 Поддержка</button>
-        <button class="btn btn-sec" onclick="openSettings()">⚙️ Настройки</button>
         <button class="btn btn-sec" onclick="logout()">Выйти</button>
         <button class="btn btn-sec" onclick="closeProfile()">Закрыть</button>
       </div>
     </div>
   </div>
 
-  <!-- ПОДДЕРЖКА -->
   <div class="modal" id="supportModal">
     <div class="modal-content">
       <h2>Поддержка</h2>
@@ -136,20 +105,6 @@
     </div>
   </div>
 
-  <!-- НАСТРОЙКИ -->
-  <div class="modal" id="settingsModal">
-    <div class="modal-content">
-      <h2>Настройки</h2>
-      <label>Тема:</label>
-      <div style="display:flex; gap:10px; margin-bottom:15px;">
-        <button class="btn btn-sec" onclick="setTheme('dark')">Тёмная</button>
-        <button class="btn btn-sec" onclick="setTheme('light')">Светлая</button>
-      </div>
-      <button class="btn btn-sec" onclick="document.getElementById('settingsModal').classList.remove('active')">Назад</button>
-    </div>
-  </div>
-
-  <!-- ПОПОЛНЕНИЕ -->
   <div class="modal" id="topupModal">
     <div class="modal-content">
       <h2>Пополнение</h2>
@@ -171,8 +126,6 @@ let rideInterval = null;
 let isPaused = false;
 let allScooters = [];
 
-if(user && user.theme === 'light') document.body.classList.add('light-theme');
-
 const map = L.map('map', {zoomControl:false, maxZoom: 19}).setView([55.75, 37.61], 16);
 L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19 }).addTo(map);
 
@@ -188,7 +141,6 @@ if (navigator.geolocation) {
   }, (err) => {}, { enableHighAccuracy: true });
 }
 
-// Загрузка самокатов
 async function loadScooters() {
   try {
     const r = await fetch(API + '/api/scooters');
@@ -215,7 +167,6 @@ function renderScooters(data) {
   });
 }
 
-// ПОИСК
 function filterScooters() {
   const query = document.getElementById('searchInput').value.toLowerCase();
   const filtered = allScooters.filter(s => s.id.toLowerCase().includes(query));
@@ -225,7 +176,6 @@ function filterScooters() {
 setInterval(loadScooters, 5000);
 loadScooters();
 
-// ПРОФИЛЬ
 function openProfile() {
   document.getElementById('profileModal').classList.add('active');
   if(user) {
@@ -263,13 +213,6 @@ async function login() {
 }
 function logout() { user = null; localStorage.removeItem('skyy_user'); closeProfile(); }
 
-function setTheme(theme) {
-  if(theme === 'light') document.body.classList.add('light-theme');
-  else document.body.classList.remove('light-theme');
-  if(user) { user.theme = theme; localStorage.setItem('skyy_user', JSON.stringify(user)); }
-}
-
-// ПОДДЕРЖКА
 function openSupport() { document.getElementById('profileModal').classList.remove('active'); document.getElementById('supportModal').classList.add('active'); }
 async function sendSupport() {
   const msg = document.getElementById('supportMsg').value;
@@ -279,17 +222,15 @@ async function sendSupport() {
   alert('Сообщение отправлено!');
 }
 
-// ПОПОЛНЕНИЕ
 function topUp() { document.getElementById('topupModal').classList.add('active'); }
 async function confirmTopup() {
   const amount = document.getElementById('topupAmount').value;
   if(!amount || amount < 30) return alert('Сумма от 30 рублей');
   await fetch(API + '/api/request-topup', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ username: user.username, amount }) });
   document.getElementById('topupModal').classList.remove('active');
-  alert('Заявка отправлена!');
+  alert('Заявка отправлена! Ждите подтверждения.');
 }
 
-// ВЫБОР И СТАРТ
 function selectScooter(s) {
   if(!user) { alert('Войдите в аккаунт!'); openProfile(); return; }
   currentScooter = s;
@@ -304,7 +245,7 @@ function selectTariff(name, el) {
 async function confirmTariff() {
   document.getElementById('tariffModal').classList.remove('active');
   
-  // ПРОВЕРКА БАЛАНСА (Запрашиваем свежий с сервера)
+  // ГЛАВНОЕ ИСПРАВЛЕНИЕ: Синхронизация баланса
   try {
     const check = await fetch(API + '/api/login', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ username: user.username, password: user.password }) });
     const checkRes = await check.json();
@@ -354,28 +295,17 @@ async function togglePause() {
 }
 function toggleLight() { alert('Фонарь включен!'); }
 
-// ЗАВЕРШЕНИЕ
-function openEndRide() {
-  document.getElementById('rideModal').classList.remove('active');
-  document.getElementById('endRideModal').classList.add('active');
-}
-async function submitEndRide() {
-  const photoInput = document.getElementById('parkingPhoto');
-  if (!photoInput.files[0]) return alert('Сделайте фото!');
-  
-  const formData = new FormData();
-  formData.append('username', user.username);
-  formData.append('scooterId', currentScooter.id);
-  formData.append('photo', photoInput.files[0]);
-  
-  document.getElementById('endRideModal').classList.remove('active');
+async function endRide() {
   clearInterval(rideInterval);
-  
-  const r = await fetch(API + '/api/end-ride', { method: 'POST', body: formData });
+  const r = await fetch(API + '/api/end-ride', {
+    method: 'POST', headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({ username: user.username, scooterId: currentScooter.id })
+  });
   const res = await r.json();
   
   user.balance = res.balance;
   localStorage.setItem('skyy_user', JSON.stringify(user));
+  document.getElementById('rideModal').classList.remove('active');
   alert(`Поездка завершена.\nСписано: ${res.extraCost} ₽\nБаланс: ${user.balance} ₽`);
   loadScooters();
 }
