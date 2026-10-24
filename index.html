@@ -25,6 +25,8 @@
   input, textarea{width:100%; padding:16px; background:var(--card-2); border:none; border-radius:12px; color:#fff; margin-bottom:12px; font-size:16px; box-sizing:border-box;}
   .marker{background:var(--accent); width:36px; height:36px; border-radius:50% 50% 50% 0; transform:rotate(-45deg); display:grid; place-items:center; border:3px solid #fff;}
   .marker span{transform:rotate(45deg); font-size:18px;}
+  .ticket{background:var(--card-2); padding:12px; border-radius:10px; margin-bottom:10px; text-align:left;}
+  .reply{color:var(--green); margin-top:8px; border-left:2px solid var(--green); padding-left:8px;}
 </style>
 </head>
 <body>
@@ -45,7 +47,6 @@
   <div class="modal" id="profileModal">
     <div class="modal-content">
       <h2>Личный кабинет</h2>
-      
       <div id="authForm">
         <input type="text" id="usernameInput" placeholder="Логин">
         <input type="password" id="passwordInput" placeholder="Пароль">
@@ -53,7 +54,6 @@
         <button class="btn btn-sec" onclick="register()">Зарегистрироваться</button>
         <button class="btn btn-sec" onclick="closeProfile()">Закрыть</button>
       </div>
-
       <div id="loggedIn" style="display:none;">
         <p>Логин: <b id="userName"></b></p>
         <h1 style="font-size:42px; margin:10px 0; color:var(--green);" id="userBalance">0 ₽</h1>
@@ -74,7 +74,7 @@
       <h2>Настройки</h2>
       <label style="color:var(--muted); font-size:12px; display:block; text-align:left; margin-bottom:5px;">Смена пароля</label>
       <input type="password" id="newPassword" placeholder="Новый пароль">
-      <label style="color:var(--muted); font-size:12px; display:block; text-align:left; margin-bottom:5px;">Почта (для связи)</label>
+      <label style="color:var(--muted); font-size:12px; display:block; text-align:left; margin-bottom:5px;">Почта</label>
       <input type="email" id="newEmail" placeholder="mail@example.com">
       <button class="btn" onclick="saveSettings()">Сохранить</button>
       <button class="btn btn-sec" onclick="closeSettings()">Назад</button>
@@ -85,10 +85,21 @@
   <div class="modal" id="supportModal">
     <div class="modal-content">
       <h2>Поддержка</h2>
-      <p style="color:var(--muted); font-size:14px;">Опишите проблему, и мы ответим вам в ближайшее время.</p>
-      <textarea id="supportMsg" rows="4" placeholder="Ваше сообщение..."></textarea>
-      <button class="btn" onclick="sendSupport()">Отправить</button>
-      <button class="btn btn-sec" onclick="closeSupport()">Назад</button>
+      <div style="display:flex; gap:10px; margin-bottom:15px;">
+        <button class="btn btn-sec" onclick="showSupportTab('write')">Написать</button>
+        <button class="btn btn-sec" onclick="showSupportTab('history')">Мои обращения</button>
+      </div>
+
+      <div id="supportWrite">
+        <textarea id="supportMsg" rows="3" placeholder="Ваше сообщение..."></textarea>
+        <button class="btn" onclick="sendSupport()">Отправить</button>
+      </div>
+
+      <div id="supportHistory" style="display:none; text-align:left;">
+        <div id="ticketsList">Загрузка...</div>
+      </div>
+      
+      <button class="btn btn-sec" onclick="closeSupport()" style="margin-top:10px;">Назад</button>
     </div>
   </div>
 
@@ -197,10 +208,8 @@ function closeSettings() {
 async function saveSettings() {
   const newPassword = document.getElementById('newPassword').value;
   const newEmail = document.getElementById('newEmail').value;
-  
   const r = await fetch(API + '/api/update-profile', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ username: user.username, newPassword, newEmail }) });
   const res = await r.json();
-  
   if(res.success) {
     user.password = res.user.password;
     user.email = res.user.email;
@@ -214,20 +223,44 @@ async function saveSettings() {
 function openSupport() {
   document.getElementById('profileModal').classList.remove('active');
   document.getElementById('supportModal').classList.add('active');
+  showSupportTab('write');
 }
 function closeSupport() {
   document.getElementById('supportModal').classList.remove('active');
   document.getElementById('profileModal').classList.add('active');
 }
+
+function showSupportTab(tab) {
+  if(tab === 'write') {
+    document.getElementById('supportWrite').style.display = 'block';
+    document.getElementById('supportHistory').style.display = 'none';
+  } else {
+    document.getElementById('supportWrite').style.display = 'none';
+    document.getElementById('supportHistory').style.display = 'block';
+    loadTickets();
+  }
+}
+
 async function sendSupport() {
   const msg = document.getElementById('supportMsg').value;
   if(!msg) return alert('Введите сообщение');
-  
   await fetch(API + '/api/support', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ username: user.username, message: msg }) });
-  
   document.getElementById('supportMsg').value = '';
-  alert('Сообщение отправлено! Оператор ответит вам в ближайшее время.');
-  closeSupport();
+  alert('Сообщение отправлено! Оператор скоро ответит.');
+}
+
+async function loadTickets() {
+  const r = await fetch(API + '/api/support/' + user.username);
+  const tickets = await r.json();
+  if(tickets.length === 0) { document.getElementById('ticketsList').innerText = 'У вас пока нет обращений'; return; }
+  
+  document.getElementById('ticketsList').innerHTML = tickets.reverse().map(t => `
+    <div class="ticket">
+      <div style="font-size:12px; color:#888;">${t.time}</div>
+      <div style="margin-top:5px;">${t.message}</div>
+      ${t.reply ? `<div class="reply"><b>Ответ оператора:</b><br>${t.reply}</div>` : '<div style="color:#888; font-size:12px; margin-top:5px;">Ожидает ответа...</div>'}
+    </div>
+  `).join('');
 }
 
 // --- ОПЛАТА И ПОЕЗДКИ ---
@@ -259,7 +292,7 @@ async function loadScooters() {
 function selectScooter(s) {
   if(!user) { alert('Войдите в аккаунт!'); openProfile(); return; }
   currentScooter = s;
-  if(user.balance < 30) { alert('Недостаточно средств! Пополните баланс (минимум 30 ₽).'); topUp(); return; }
+  if(user.balance < 30) { alert('Недостаточно средств! Пополните баланс.'); topUp(); return; }
   if(confirm(`Начать поездку на ${s.id}?\nСтоимость: 30 ₽ старт + 7 ₽/мин`)) startRide();
 }
 
