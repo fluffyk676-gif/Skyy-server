@@ -71,8 +71,8 @@
   <div class="modal" id="topupModal">
     <div class="modal-content">
       <h2>Пополнение</h2>
-      <p style="color:var(--muted); margin-bottom:20px;">Переведите сумму на номер <b>+7 985 805-33-95</b> (Сбер), затем введите сумму ниже.</p>
-      <input type="number" id="topupAmount" placeholder="Сумма (например, 300)">
+      <p style="color:var(--muted); margin-bottom:20px; font-size:14px;">Переведите сумму на номер <b>+7 985 805-33-95</b> (Сбер), затем введите её ниже.</p>
+      <input type="number" id="topupAmount" placeholder="Сумма (например, 100)">
       <button class="btn" onclick="confirmTopup()">Я перевел</button>
       <button class="btn btn-sec" onclick="document.getElementById('topupModal').classList.remove('active')">Отмена</button>
     </div>
@@ -122,51 +122,53 @@ async function login() {
     body: JSON.stringify({ phone })
   });
   user = await r.json();
-  openProfile(); // Обновить экран
+  openProfile();
 }
 
 // --- ПОПОЛНЕНИЕ ---
 function topUp() { document.getElementById('topupModal').classList.add('active'); }
+
 async function confirmTopup() {
   const amount = document.getElementById('topupAmount').value;
   if(!amount) return;
   
-  // Имитация: в реальности надо проверить смс от банка. 
-  // Мы просто начисляем баланс (по доверию)
-  const r = await fetch(API + '/api/topup', {
+  const r = await fetch(API + '/api/request-topup', {
     method: 'POST', headers: {'Content-Type': 'application/json'},
-    body: JSON.stringify({ phone: user.phone, amount })
+    body: JSON.stringify({ phone: user.phone, amount: amount })
   });
-  user = await r.json();
-  document.getElementById('topupModal').classList.remove('active');
-  openProfile();
-  alert('Баланс пополнен!');
+  
+  if(r.ok) {
+    document.getElementById('topupModal').classList.remove('active');
+    alert('Запрос отправлен! Переведите деньги на номер +7 985 805-33-95 и подождите 1-2 минуты, пока оператор подтвердит оплату.');
+  }
 }
 
 // --- ЗАГРУЗКА КАРТЫ ---
 async function loadScooters() {
-  const r = await fetch(API + '/api/scooters');
-  const data = await r.json();
-  
-  // Очистка старых маркеров
-  map.eachLayer(layer => { if(layer instanceof L.Marker) map.removeLayer(layer); });
-  
-  document.getElementById('scooterList').innerHTML = '';
-  
-  data.forEach(s => {
-    L.marker([s.lat, s.lng], {
-      icon: L.divIcon({html:'<div class="marker"><span>🛴</span></div>', iconSize:[36,36], iconAnchor:[18,18]})
-    }).addTo(map).on('click', () => selectScooter(s));
+  try {
+    const r = await fetch(API + '/api/scooters');
+    const data = await r.json();
     
-    document.getElementById('scooterList').innerHTML += `
-      <div style="padding:12px; border-bottom:1px solid #333; display:flex; justify-content:space-between;" onclick="selectScooter(${JSON.stringify(s).replace(/"/g, '&quot;')})">
-        <div><b>${s.id}</b><br><small style="color:var(--muted)">Заряд: ${s.battery}%</small></div>
-        <div style="color:var(--accent);">30 ₽ + 7 ₽/мин</div>
-      </div>
-    `;
-  });
-  
-  document.getElementById('serverStatus').innerText = `Найдено самокатов: ${data.length}`;
+    map.eachLayer(layer => { if(layer instanceof L.Marker) map.removeLayer(layer); });
+    document.getElementById('scooterList').innerHTML = '';
+    
+    data.forEach(s => {
+      L.marker([s.lat, s.lng], {
+        icon: L.divIcon({html:'<div class="marker"><span>🛴</span></div>', iconSize:[36,36], iconAnchor:[18,18]})
+      }).addTo(map).on('click', () => selectScooter(s));
+      
+      document.getElementById('scooterList').innerHTML += `
+        <div style="padding:12px; border-bottom:1px solid #333; display:flex; justify-content:space-between;" onclick='selectScooter(${JSON.stringify(s)})'>
+          <div><b>${s.id}</b><br><small style="color:var(--muted)">Заряд: ${s.battery}%</small></div>
+          <div style="color:var(--accent);">30 ₽ + 7 ₽/мин</div>
+        </div>
+      `;
+    });
+    
+    document.getElementById('serverStatus').innerText = `Найдено самокатов: ${data.length}`;
+  } catch (e) {
+    document.getElementById('serverStatus').innerText = 'Ошибка сети';
+  }
 }
 
 // --- ПОЕЗДКА ---
