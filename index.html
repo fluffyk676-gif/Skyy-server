@@ -89,14 +89,17 @@
     <div class="modal-content">
       <div class="modal-header">
         <h2>Оплата поездки</h2>
-        <button class="close-btn" onclick="closeModal('paymentModal')">✕</button>
+        <button class="close-btn" onclick="location.reload()">✕</button>
       </div>
       <div style="text-align:center; margin-bottom:24px;">
         <p style="color:var(--muted); margin:0;">Итого к оплате:</p>
         <div style="font-size:42px; font-weight:800; color:var(--accent);" id="payAmount">0 ₽</div>
       </div>
-      <button class="btn btn-start" style="width:100%;" onclick="payWithSBP()">Оплатить через СБП</button>
-      <p style="font-size:12px; color:var(--muted); text-align:center; margin-top:16px;">Перевод на номер +7 985 805-33-95</p>
+      <button class="btn btn-start" style="width:100%;" onclick="payWithSBP()">Скопировать номер для оплаты</button>
+      <p style="font-size:14px; color:var(--muted); text-align:center; margin-top:16px;">
+        Получатель: Сбер<br>
+        Номер: +7 985 805-33-95
+      </p>
     </div>
   </div>
 
@@ -229,26 +232,18 @@ async function endRide(){
   document.getElementById('paymentModal').classList.add('active');
 }
 
-// ОПЛАТА ЧЕРЕЗ СБП (ПО НОМЕРУ ТЕЛЕФОНА)
+// ОПЛАТА (КОПИРОВАНИЕ НОМЕРА)
 function payWithSBP() {
-  const amount = document.getElementById('payAmount').textContent.replace(' ₽', '');
-  const phone = '79858053395'; // Твой номер
-  const bank = 'tinkoff'; // Твой банк (для формирования ссылки)
+  const phone = "+79858053395";
   
-  // Универсальная ссылка для СБП (откроет приложение банка)
-  // В реальности для каждого банка своя ссылка, но это самая рабочая
-  const sbpLink = `https://qr.nspk.ru/AS1000L4O9L1L4O9L1L4O9L1L4O9L1L4?amount=${amount}&phone=${phone}`;
-  
-  // Так как мы не можем сгенерировать реальный QR без API банка, 
-  // мы просто открываем приложение Сбера/Тинькофф с переводом по номеру
-  const link = `https://www.tinkoff.ru/rm/${phone}/${amount}`; // Пример
-  
-  // Самое надежное - открыть приложение банка по ссылке (если настроено) 
-  // или показать окно с номером
-  window.location.href = `tel:${phone}`; // Заглушка для звонка, если ничего не сработает
-  alert(`Переведите ${amount} ₽ на номер +7 985 805-33-95 и нажмите ОК`);
-  closeModal('paymentModal');
-  location.reload();
+  navigator.clipboard.writeText(phone).then(() => {
+    toast('Номер скопирован!');
+    alert(`Номер +7 985 805-33-95 скопирован.\n\nОткройте приложение банка, выберите "Перевод по номеру телефона" и вставьте номер.`);
+    location.reload();
+  }).catch(err => {
+    alert(`Переведите сумму на номер +7 985 805-33-95 в приложении банка.`);
+    location.reload();
+  });
 }
 
 initMap();
