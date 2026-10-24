@@ -8,44 +8,45 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
 const scooters = {};
-const commandQueue = {};
 const users = {};
-const pendingTopups = {}; 
+const pendingTopups = {};
 
-// --- API СЕРВЕРА ---
+// 1. Прием координат от самокатов
 app.post('/api/scooter/location', (req, res) => {
   const { id, lat, lon } = req.body;
   if (id && lat && lon) scooters[id] = { id, lat: parseFloat(lat), lng: parseFloat(lon), lastSeen: Date.now() };
   res.send('OK');
 });
 
+// 2. Список самокатов
 app.get('/api/scooters', (req, res) => res.json(Object.values(scooters)));
 
+// 3. Авторизация (создание аккаунта)
 app.post('/api/login', (req, res) => {
   const phone = req.body.phone;
   if (!users[phone]) users[phone] = { phone, balance: 0 };
   res.json(users[phone]);
 });
 
-// Прием заявки на пополнение
+// 4. Создание заявки на пополнение
 app.post('/api/request-topup', (req, res) => {
   const { phone, amount } = req.body;
   const id = Date.now().toString();
-  pendingTopups[id] = { id, phone, amount, status: 'pending' };
-  console.log(`Новая заявка: ${phone} на ${amount} руб.`);
+  pendingTopups[id] = { id, phone, amount };
   res.json({ success: true });
 });
 
-// Старт/Конец поездки
+// 5. Старт поездки (списываем 30 руб)
 app.post('/api/start-ride', (req, res) => {
   const { phone, scooterId } = req.body;
   const user = users[phone];
   if (!user || user.balance < 30) return res.status(400).json({ error: 'Мало средств (нужно 30₽)' });
+  
   user.balance -= 30;
-  commandQueue[scooterId] = 'START';
   res.json({ success: true, balance: user.balance });
 });
 
+// 6. Конец поездки (списываем 7 руб/мин)
 app.post('/api/end-ride', (req, res) => {
   const { phone, minutes } = req.body;
   const user = users[phone];
@@ -54,7 +55,7 @@ app.post('/api/end-ride', (req, res) => {
   res.json({ balance: user.balance, cost });
 });
 
-// --- АДМИН-ПАНЕЛЬ ---
+// 7. АДМИН-ПАНЕЛЬ (доступна по адресу /admin)
 app.get('/admin', (req, res) => {
   let html = `<html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Skyy Admin</title>
   <style>body{font-family:sans-serif;padding:20px;background:#121212;color:#fff;} 
@@ -80,7 +81,6 @@ app.get('/admin', (req, res) => {
         </div>
       \`).join('');
     }
-    
     async function confirm(id, phone, amount) {
       await fetch('/api/admin/confirm-topup', {
         method: 'POST', headers: {'Content-Type': 'application/json'},
@@ -88,7 +88,6 @@ app.get('/admin', (req, res) => {
       });
       load();
     }
-    
     async function reject(id) {
       await fetch('/api/admin/reject-topup', {
         method: 'POST', headers: {'Content-Type': 'application/json'},
@@ -96,7 +95,6 @@ app.get('/admin', (req, res) => {
       });
       load();
     }
-    
     load();
     setInterval(load, 3000);
   </script></body></html>`;
@@ -117,7 +115,7 @@ app.post('/api/admin/reject-topup', (req, res) => {
   res.send('OK');
 });
 
-// --- ТРЕКЕР ---
+// 8. ТРЕКЕР (для iPad/телефона)
 app.get('/tracker.html', (req, res) => {
   res.send(`
     <!DOCTYPE html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"></head>
