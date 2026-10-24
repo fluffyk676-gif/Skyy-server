@@ -7,11 +7,10 @@ app.use(cors());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-// База данных в памяти
 const scooters = {};
 const commandQueue = {};
 
-// Очистка старых самокатов (чтобы не было фантомов)
+// Очистка старых самокатов
 setInterval(() => {
   const now = Date.now();
   for (let id in scooters) {
@@ -21,7 +20,7 @@ setInterval(() => {
   }
 }, 60000);
 
-// 1. Прием координат от устройств (iPad или ESP32)
+// 1. Прием координат
 app.post('/api/scooter/location', (req, res) => {
   const { id, lat, lon, battery, lock } = req.body;
   if (id && lat && lon) {
@@ -33,28 +32,26 @@ app.post('/api/scooter/location', (req, res) => {
       lock: lock === '1', 
       lastSeen: Date.now() 
     };
-    console.log(`[GPS] ${id}: ${lat}, ${lon}`);
   }
   res.send('OK');
 });
 
-// 2. Отдача списка самокатов в приложение
+// 2. Отдача списка
 app.get('/api/scooters', (req, res) => {
   res.json(Object.values(scooters));
 });
 
-// 3. Прием команд из приложения (START, STOP, CALL)
+// 3. Прием команд
 app.post('/api/scooter/:id/command', (req, res) => {
   const id = req.params.id;
   const cmd = req.body.toString().toUpperCase() || req.body;
   if (cmd) {
     commandQueue[id] = cmd;
-    console.log(`[CMD] Для ${id}: ${cmd}`);
   }
   res.send('OK');
 });
 
-// 4. Выдача команд для устройства
+// 4. Выдача команд
 app.get('/api/scooter/:id/command', (req, res) => {
   const id = req.params.id;
   const cmd = commandQueue[id];
@@ -66,7 +63,7 @@ app.get('/api/scooter/:id/command', (req, res) => {
   }
 });
 
-// 5. СТРАНИЦА ТРЕКЕРА ДЛЯ IPAD (чтобы он стал самокатом)
+// 5. УНИВЕРСАЛЬНЫЙ ТРЕКЕР (каждому устройству свой ID)
 app.get('/tracker.html', (req, res) => {
   res.send(`
     <!DOCTYPE html>
@@ -81,15 +78,23 @@ app.get('/tracker.html', (req, res) => {
       </style>
     </head>
     <body id="body" onclick="unlockAudio()">
-      <h2 style="color:#0ea5e9;" id="title">Skyy Tracker (iPad)</h2>
+      <h2 style="color:#0ea5e9;" id="title">Skyy Tracker</h2>
       <p id="gpsStatus" style="font-size:20px;font-weight:bold;color:#f59e0b;">Ожидание GPS...</p>
       <p id="cmdStatus" style="font-size:18px;color:#64748b;margin-top:20px;">Проверка команд...</p>
+      <p style="font-size:14px;color:#94a3b8;" id="deviceId">ID: ...</p>
       
       <script>
         const API = 'https://skyy-server.onrender.com';
-        const ID = 'Skyy-iPad';
-        let audioCtx = null;
+        
+        // УНИКАЛЬНЫЙ ID ДЛЯ КАЖДОГО УСТРОЙСТВА
+        let ID = localStorage.getItem('skyy_scooter_id');
+        if (!ID) {
+            ID = 'Skyy-' + Math.floor(1000 + Math.random() * 9000);
+            localStorage.setItem('skyy_scooter_id', ID);
+        }
+        document.getElementById('deviceId').innerText = 'ID: ' + ID;
 
+        let audioCtx = null;
         function unlockAudio() {
           if (!audioCtx) {
             audioCtx = new (window.AudioContext || window.webkitAudioContext)();
@@ -110,8 +115,7 @@ app.get('/tracker.html', (req, res) => {
               });
             },
             (err) => {
-              document.getElementById('gpsStatus').innerText = 'Ошибка GPS: ' + err.message;
-              document.getElementById('gpsStatus').style.color = '#ef4444';
+              document.getElementById('gpsStatus').innerText = 'Ошибка GPS';
             },
             { enableHighAccuracy: true, timeout: 10000 }
           );
@@ -127,7 +131,6 @@ app.get('/tracker.html', (req, res) => {
                 document.getElementById('cmdStatus').innerText = 'СИРЕНА! 🔔';
                 document.getElementById('body').classList.add('alarm');
                 setTimeout(() => document.getElementById('body').classList.remove('alarm'), 3000);
-                
                 if (audioCtx) {
                   const osc = audioCtx.createOscillator();
                   const gain = audioCtx.createGain();
@@ -139,12 +142,6 @@ app.get('/tracker.html', (req, res) => {
                   osc.start();
                   setTimeout(() => osc.stop(), 3000);
                 }
-              } else if (cmd === 'START') {
-                document.getElementById('cmdStatus').innerText = 'Самокат РАЗБЛОКИРОВАН';
-                document.getElementById('cmdStatus').style.color = '#22c55e';
-              } else if (cmd === 'STOP') {
-                document.getElementById('cmdStatus').innerText = 'Самокат ЗАБЛОКИРОВАН';
-                document.getElementById('cmdStatus').style.color = '#ef4444';
               }
             })
             .catch(e => {});
@@ -156,7 +153,6 @@ app.get('/tracker.html', (req, res) => {
   `);
 });
 
-// 6. Раздача главного приложения (index.html)
 app.use(express.static(__dirname));
 app.get('/', (req, res) => {
   res.sendFile(path.join(__dirname, 'index.html'));
