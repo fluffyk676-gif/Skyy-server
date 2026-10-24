@@ -19,7 +19,7 @@
   .topbar{position:absolute; top:0; left:0; right:0; z-index:500; padding:16px; display:flex; gap:8px; pointer-events:none; align-items:center}
   .topbar > * { pointer-events: auto; }
   .btn-icon{width:44px; height:44px; background:var(--card); border-radius:14px; display:grid; place-items:center; font-size:20px; color:var(--text-theme); border:none; cursor:pointer;}
-  .search-bar{flex:1; background:var(--card); border-radius:14px; padding:12px; font-size:14px; color:var(--text-theme);}
+  .search-bar{flex:1; background:var(--card); border-radius:14px; padding:12px; font-size:14px; color:var(--text-theme); border:none; outline:none;}
   
   .sheet{position:absolute; left:0; right:0; bottom:0; z-index:500; background:var(--card); border-radius:24px 24px 0 0; padding:20px; max-height:85vh; display:flex; flex-direction:column; transition: transform 0.4s cubic-bezier(0.2, 0.8, 0.2, 1); box-shadow: 0 -5px 20px rgba(0,0,0,0.3);}
   .grabber{width:40px; height:5px; background:#555; border-radius:3px; margin:0 auto 15px;}
@@ -37,12 +37,9 @@
   
   .marker{background:var(--accent); width:36px; height:36px; border-radius:50% 50% 50% 0; transform:rotate(-45deg); display:grid; place-items:center; border:3px solid #fff; cursor:pointer;}
   .marker span{transform:rotate(45deg); font-size:18px;}
-  .marker.busy { background: #888; opacity: 0.5; }
-
+  
   .tariff-row{display:flex; justify-content:space-between; align-items:center; padding:15px; background:var(--card-2); border-radius:12px; margin-bottom:10px; cursor:pointer; border:2px solid transparent;}
   .tariff-row.selected{border-color:var(--accent);}
-  .ride-controls{display:flex; gap:10px; margin-top:10px;}
-  .ride-controls .btn{flex:1;}
   
   .user-dot { width: 18px; height: 18px; border-radius: 50%; background: #0ea5e9; border: 3px solid #fff; box-shadow: 0 0 0 5px rgba(14,165,233,0.3); }
   .scooter-item { padding: 12px; border-bottom: 1px solid #333; display: flex; justify-content: space-between; align-items: center; cursor: pointer;}
@@ -53,7 +50,7 @@
   <div id="map"></div>
   <div class="topbar">
     <div style="font-weight:800; font-size:20px;">Skyy</div>
-    <div class="search-bar">🔍 Куда поедем?</div>
+    <input type="text" id="searchInput" class="search-bar" placeholder="🔍 Поиск самоката..." oninput="filterScooters()">
     <button class="btn-icon" onclick="openProfile()">👤</button>
   </div>
   
@@ -64,7 +61,7 @@
     <div style="font-size:12px; color:var(--muted); text-align:center;" id="serverStatus">Подключение...</div>
   </div>
 
-  <!-- МОДАЛКА ВЫБОРА ТАРИФА -->
+  <!-- ТАРИФЫ -->
   <div class="modal" id="tariffModal">
     <div class="modal-content">
       <h2>Выберите тариф</h2>
@@ -82,12 +79,12 @@
     </div>
   </div>
 
-  <!-- МОДАЛКА ПОЕЗДКИ -->
+  <!-- ПОЕЗДКА -->
   <div class="modal" id="rideModal">
     <div class="modal-content">
       <h2 style="color:var(--green);" id="rideStatus">В пути</h2>
       <div style="font-size:56px; font-weight:800; margin:20px 0;" id="rideTimer">00:00</div>
-      <div class="ride-controls">
+      <div style="display:flex; gap:10px; margin-top:10px;">
         <button class="btn btn-sec" onclick="toggleLight()">💡 Фонарь</button>
         <button class="btn btn-sec" onclick="togglePause()" id="pauseBtn">⏸ Пауза</button>
       </div>
@@ -95,11 +92,11 @@
     </div>
   </div>
 
-  <!-- МОДАЛКА ФОТО ПРИ ЗАВЕРШЕНИИ -->
+  <!-- ФОТО -->
   <div class="modal" id="endRideModal">
     <div class="modal-content">
-      <h2 style="color:var(--accent);">Завершение поездки</h2>
-      <p style="color:var(--muted); margin-bottom:15px;">Привяжите самокат к ограде и сфотографируйте его.</p>
+      <h2 style="color:var(--accent);">Завершение</h2>
+      <p style="color:var(--muted); margin-bottom:15px;">Привяжите самокат к ограде и сфотографируйте.</p>
       <input type="file" id="parkingPhoto" accept="image/*" capture="environment" style="background:#fff; color:#000;">
       <button class="btn" onclick="submitEndRide()">Завершить</button>
       <button class="btn btn-sec" onclick="document.getElementById('endRideModal').classList.remove('active')">Отмена</button>
@@ -120,12 +117,22 @@
       <div id="loggedIn" style="display:none;">
         <p>Логин: <b id="userName"></b></p>
         <h1 style="font-size:42px; margin:10px 0; color:var(--green);" id="userBalance">0 ₽</h1>
-        <p style="color:var(--muted); font-size:12px; margin-bottom:20px;">Баланс</p>
-        <button class="btn" onclick="topUp()">Пополнить баланс</button>
+        <button class="btn" onclick="topUp()">Пополнить</button>
+        <button class="btn btn-sec" onclick="openSupport()">💬 Поддержка</button>
         <button class="btn btn-sec" onclick="openSettings()">⚙️ Настройки</button>
         <button class="btn btn-sec" onclick="logout()">Выйти</button>
-        <button class="btn btn-sec" onclick="closeProfile()">Закрыть окно</button>
+        <button class="btn btn-sec" onclick="closeProfile()">Закрыть</button>
       </div>
+    </div>
+  </div>
+
+  <!-- ПОДДЕРЖКА -->
+  <div class="modal" id="supportModal">
+    <div class="modal-content">
+      <h2>Поддержка</h2>
+      <textarea id="supportMsg" rows="3" placeholder="Ваше сообщение..."></textarea>
+      <button class="btn" onclick="sendSupport()">Отправить</button>
+      <button class="btn btn-sec" onclick="document.getElementById('supportModal').classList.remove('active')">Назад</button>
     </div>
   </div>
 
@@ -138,7 +145,7 @@
         <button class="btn btn-sec" onclick="setTheme('dark')">Тёмная</button>
         <button class="btn btn-sec" onclick="setTheme('light')">Светлая</button>
       </div>
-      <button class="btn btn-sec" onclick="closeSettings()">Назад</button>
+      <button class="btn btn-sec" onclick="document.getElementById('settingsModal').classList.remove('active')">Назад</button>
     </div>
   </div>
 
@@ -162,20 +169,18 @@ let selectedTariff = 'minute';
 let currentRide = null;
 let rideInterval = null;
 let isPaused = false;
+let allScooters = [];
 
 if(user && user.theme === 'light') document.body.classList.add('light-theme');
 
 const map = L.map('map', {zoomControl:false, maxZoom: 19}).setView([55.75, 37.61], 16);
 L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19 }).addTo(map);
 
-// Синяя точка пользователя
 if (navigator.geolocation) {
   navigator.geolocation.watchPosition((pos) => {
     const latlng = [pos.coords.latitude, pos.coords.longitude];
     if (!window.userMarker) {
-      window.userMarker = L.marker(latlng, {
-        icon: L.divIcon({ html: '<div class="user-dot"></div>', iconSize: [18,18], iconAnchor: [9,9] })
-      }).addTo(map);
+      window.userMarker = L.marker(latlng, { icon: L.divIcon({ html: '<div class="user-dot"></div>', iconSize: [18,18], iconAnchor: [9,9] }) }).addTo(map);
       map.setView(latlng, 17);
     } else {
       window.userMarker.setLatLng(latlng);
@@ -188,32 +193,39 @@ async function loadScooters() {
   try {
     const r = await fetch(API + '/api/scooters');
     const data = await r.json();
+    allScooters = data;
     document.getElementById('serverStatus').innerText = `Найдено: ${data.length}`;
-    
-    map.eachLayer(layer => { if(layer instanceof L.Marker && layer !== window.userMarker) map.removeLayer(layer); });
-    document.getElementById('scooterList').innerHTML = '';
-    
-    data.forEach(s => {
-      // Создаем маркер
-      L.marker([s.lat, s.lng], { icon: L.divIcon({html:'<div class="marker"><span>🛴</span></div>', iconSize:[36,36], iconAnchor:[18,18]}) })
-        .addTo(map)
-        .on('click', () => selectScooter(s));
-        
-      // Создаем элемент в списке
-      const div = document.createElement('div');
-      div.className = 'scooter-item';
-      div.innerHTML = `<div><b>${s.id}</b><br><small style="color:var(--muted)">Заряд: ${s.battery || 100}%</small></div><div style="color:var(--accent);">Свободен</div>`;
-      div.onclick = () => selectScooter(s);
-      document.getElementById('scooterList').appendChild(div);
-    });
-  } catch (e) {
-    document.getElementById('serverStatus').innerText = 'Ошибка сети';
-  }
+    renderScooters(data);
+  } catch (e) { document.getElementById('serverStatus').innerText = 'Ошибка сети'; }
 }
+
+function renderScooters(data) {
+  map.eachLayer(layer => { if(layer instanceof L.Marker && layer !== window.userMarker) map.removeLayer(layer); });
+  document.getElementById('scooterList').innerHTML = '';
+  
+  data.forEach(s => {
+    L.marker([s.lat, s.lng], { icon: L.divIcon({html:'<div class="marker"><span>🛴</span></div>', iconSize:[36,36], iconAnchor:[18,18]}) })
+      .addTo(map).on('click', () => selectScooter(s));
+      
+    const div = document.createElement('div');
+    div.className = 'scooter-item';
+    div.innerHTML = `<div><b>${s.id}</b><br><small style="color:var(--muted)">Заряд: ${s.battery || 100}%</small></div><div style="color:var(--accent);">Свободен</div>`;
+    div.onclick = () => selectScooter(s);
+    document.getElementById('scooterList').appendChild(div);
+  });
+}
+
+// ПОИСК
+function filterScooters() {
+  const query = document.getElementById('searchInput').value.toLowerCase();
+  const filtered = allScooters.filter(s => s.id.toLowerCase().includes(query));
+  renderScooters(filtered);
+}
+
 setInterval(loadScooters, 5000);
 loadScooters();
 
-// --- ПРОФИЛЬ ---
+// ПРОФИЛЬ
 function openProfile() {
   document.getElementById('profileModal').classList.add('active');
   if(user) {
@@ -251,22 +263,38 @@ async function login() {
 }
 function logout() { user = null; localStorage.removeItem('skyy_user'); closeProfile(); }
 
-// --- НАСТРОЙКИ ---
-function openSettings() { document.getElementById('profileModal').classList.remove('active'); document.getElementById('settingsModal').classList.add('active'); }
-function closeSettings() { document.getElementById('settingsModal').classList.remove('active'); document.getElementById('profileModal').classList.add('active'); }
 function setTheme(theme) {
   if(theme === 'light') document.body.classList.add('light-theme');
   else document.body.classList.remove('light-theme');
   if(user) { user.theme = theme; localStorage.setItem('skyy_user', JSON.stringify(user)); }
 }
 
-// --- ВЫБОР САМОКАТА ---
+// ПОДДЕРЖКА
+function openSupport() { document.getElementById('profileModal').classList.remove('active'); document.getElementById('supportModal').classList.add('active'); }
+async function sendSupport() {
+  const msg = document.getElementById('supportMsg').value;
+  if(!msg) return alert('Введите сообщение');
+  await fetch(API + '/api/support', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ username: user.username, message: msg }) });
+  document.getElementById('supportMsg').value = '';
+  alert('Сообщение отправлено!');
+}
+
+// ПОПОЛНЕНИЕ
+function topUp() { document.getElementById('topupModal').classList.add('active'); }
+async function confirmTopup() {
+  const amount = document.getElementById('topupAmount').value;
+  if(!amount || amount < 30) return alert('Сумма от 30 рублей');
+  await fetch(API + '/api/request-topup', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ username: user.username, amount }) });
+  document.getElementById('topupModal').classList.remove('active');
+  alert('Заявка отправлена!');
+}
+
+// ВЫБОР И СТАРТ
 function selectScooter(s) {
   if(!user) { alert('Войдите в аккаунт!'); openProfile(); return; }
   currentScooter = s;
   document.getElementById('tariffModal').classList.add('active');
 }
-
 function selectTariff(name, el) {
   selectedTariff = name;
   document.querySelectorAll('.tariff-row').forEach(r => r.classList.remove('selected'));
@@ -275,6 +303,17 @@ function selectTariff(name, el) {
 
 async function confirmTariff() {
   document.getElementById('tariffModal').classList.remove('active');
+  
+  // ПРОВЕРКА БАЛАНСА (Запрашиваем свежий с сервера)
+  try {
+    const check = await fetch(API + '/api/login', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ username: user.username, password: user.password }) });
+    const checkRes = await check.json();
+    if(checkRes.success) {
+      user.balance = checkRes.user.balance;
+      localStorage.setItem('skyy_user', JSON.stringify(user));
+    }
+  } catch(e) {}
+
   if(user.balance < 30) { alert('Мало средств! Пополните баланс.'); topUp(); return; }
   
   const r = await fetch(API + '/api/start-ride', {
@@ -303,7 +342,6 @@ async function togglePause() {
   const r = await fetch(API + '/api/toggle-pause', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ username: user.username, scooterId: currentScooter.id }) });
   const res = await r.json();
   isPaused = res.isPaused;
-  
   if(isPaused) {
     document.getElementById('rideStatus').innerText = 'На паузе (3 ₽/мин)';
     document.getElementById('pauseBtn').innerText = '▶️ Продолжить';
@@ -314,18 +352,16 @@ async function togglePause() {
     document.getElementById('rideTimer').style.color = '#fff';
   }
 }
+function toggleLight() { alert('Фонарь включен!'); }
 
-async function toggleLight() { alert('Фонарь включен (сигнал на самокат)!'); }
-
-// --- ЗАВЕРШЕНИЕ С ФОТО ---
+// ЗАВЕРШЕНИЕ
 function openEndRide() {
   document.getElementById('rideModal').classList.remove('active');
   document.getElementById('endRideModal').classList.add('active');
 }
-
 async function submitEndRide() {
   const photoInput = document.getElementById('parkingPhoto');
-  if (!photoInput.files[0]) return alert('Сделайте фото самоката у ограды!');
+  if (!photoInput.files[0]) return alert('Сделайте фото!');
   
   const formData = new FormData();
   formData.append('username', user.username);
@@ -342,16 +378,6 @@ async function submitEndRide() {
   localStorage.setItem('skyy_user', JSON.stringify(user));
   alert(`Поездка завершена.\nСписано: ${res.extraCost} ₽\nБаланс: ${user.balance} ₽`);
   loadScooters();
-}
-
-// --- ПОПОЛНЕНИЕ ---
-function topUp() { document.getElementById('topupModal').classList.add('active'); }
-async function confirmTopup() {
-  const amount = document.getElementById('topupAmount').value;
-  if(!amount || amount < 30) return alert('Сумма от 30 рублей');
-  await fetch(API + '/api/request-topup', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ username: user.username, amount }) });
-  document.getElementById('topupModal').classList.remove('active');
-  alert('Заявка отправлена!');
 }
 </script>
 </body>
