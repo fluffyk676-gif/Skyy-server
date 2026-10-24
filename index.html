@@ -47,28 +47,11 @@
   .scooter-list-item{display:flex; gap:12px; align-items:center; padding:12px; border-radius:16px; cursor:pointer;}
   .scooter-list-item:hover{background:var(--card-2)}
 
-  .screen{display:none; position:absolute; inset:0; background:var(--bg); z-index:3000; flex-direction:column; padding:24px; overflow-y:auto; animation:slideIn 0.3s}
-  @keyframes slideIn { from { transform: translateX(100%); } to { transform: translateX(0); } }
-  .screen.active{display:flex}
-  .screen-header{display:flex; align-items:center; gap:16px; margin-bottom:24px;}
-  .back-btn{width:44px; height:44px; background:var(--card-2); border-radius:14px; display:grid; place-items:center; font-size:20px; border:none; color:#fff; cursor:pointer}
-  .screen h1{margin:0; font-size:24px}
-  
-  .content-box{background:var(--card); border-radius:20px; padding:20px; margin-bottom:16px;}
-  .content-box h3{margin:0 0 12px; font-size:18px; color:var(--accent)}
-  .content-box p, .content-box li{color:#ccc; font-size:15px; line-height:1.5; margin:0 0 10px;}
-  .content-box ul{padding-left:20px; margin:0 0 10px;}
-
-  .menu-item{display:flex; justify-content:space-between; align-items:center; padding:20px 0; border-bottom:1px solid var(--card-2); cursor:pointer; font-size:16px; font-weight:500}
-  .menu-item:last-child{border-bottom:none}
-
   .modal{display:none; position:absolute; inset:0; background:rgba(0,0,0,0.8); z-index:2000; align-items:flex-end; justify-content:center;}
   .modal.active{display:flex}
   .modal-content{background:var(--card); width:100%; max-width:480px; border-radius:24px 24px 0 0; padding:24px; padding-bottom:calc(24px + env(safe-area-inset-bottom));}
   .modal-header{display:flex; justify-content:space-between; align-items:center; margin-bottom:24px}
   .close-btn{background:var(--card-2); border:none; color:#fff; width:36px; height:36px; border-radius:50%; font-size:16px; cursor:pointer}
-
-  input[type="tel"]{width:100%; background:var(--card-2); border:none; padding:16px; border-radius:12px; color:#fff; font-size:16px; margin-bottom:16px; outline:none;}
 
   .toast{position:absolute; bottom:120px; left:50%; transform:translateX(-50%); background:#fff; color:#000; padding:12px 20px; border-radius:12px; font-weight:600; font-size:14px; z-index:9999; opacity:0; transition:.3s; pointer-events:none;}
   .toast.show{opacity:1; transform:translate(-50%, -10px)}
@@ -79,12 +62,12 @@
   <div id="map"></div>
   
   <div class="topbar">
-    <button class="icon-btn" onclick="openScreen('menuScreen')">☰</button>
+    <button class="icon-btn" onclick="toast('Меню в разработке')">☰</button>
     <div class="search-wrapper">
       <span style="color:var(--muted); font-size:16px">🔍</span>
       <input type="text" id="searchInput" placeholder="Куда поедем?" oninput="filterScooters()">
     </div>
-    <button class="icon-btn" onclick="openProfile()">👤</button>
+    <button class="icon-btn" onclick="toast('Профиль в разработке')">👤</button>
   </div>
 
   <div class="map-controls">
@@ -101,59 +84,19 @@
     <div id="detailPanel" style="display:none; flex-direction:column;"></div>
   </div>
 
-  <!-- ЭКРАНЫ -->
-  <div class="screen" id="menuScreen">
-    <div class="screen-header"><button class="back-btn" onclick="closeScreen('menuScreen')">←</button><h1>Меню</h1></div>
-    <div class="menu-item" onclick="openScreen('tariffsScreen')"><span>💰 Тарифы и подписки</span> <span>→</span></div>
-    <div class="menu-item" onclick="openScreen('helpScreen')"><span>🆘 Помощь и поддержка</span> <span>→</span></div>
-    <div class="menu-item" onclick="openScreen('safetyScreen')"><span>🛡️ Безопасность</span> <span>→</span></div>
-    <div class="menu-item" onclick="openScreen('aboutScreen')"><span>ℹ️ О сервисе Skyy</span> <span>→</span></div>
-  </div>
-
-  <div class="screen" id="tariffsScreen">
-    <div class="screen-header"><button class="back-btn" onclick="closeScreen('tariffsScreen')">←</button><h1>Тарифы</h1></div>
-    <div class="content-box"><h3>Старт: 55 ₽</h3><p>Списывается сразу после разблокировки.</p></div>
-    <div class="content-box"><h3>Поминутно: 7 ₽/мин</h3><p>Списание каждую минуту поездки.</p></div>
-  </div>
-
-  <div class="screen" id="helpScreen">
-    <div class="screen-header"><button class="back-btn" onclick="closeScreen('helpScreen')">←</button><h1>Помощь</h1></div>
-    <div class="content-box"><h3>Самокат не едет?</h3><p>Проверьте интернет и баланс. Если не помогло — напишите в чат.</p></div>
-  </div>
-
-  <div class="screen" id="safetyScreen">
-    <div class="screen-header"><button class="back-btn" onclick="closeScreen('safetyScreen')">←</button><h1>Безопасность</h1></div>
-    <div class="content-box"><h3>Правила</h3><ul><li>Не превышайте 25 км/ч</li><li>Надевайте шлем</li><li>Уступайте пешеходам</li></ul></div>
-  </div>
-
-  <div class="screen" id="aboutScreen">
-    <div class="screen-header"><button class="back-btn" onclick="closeScreen('aboutScreen')">←</button><h1>О сервисе</h1></div>
-    <div class="content-box"><h3>Skyy Mobility</h3><p>Сервис кикшеринга. Версия 1.0.0</p></div>
-  </div>
-
-  <div class="screen" id="historyScreen">
-    <div class="screen-header"><button class="back-btn" onclick="closeScreen('historyScreen')">←</button><h1>История</h1></div>
-    <div class="content-box" style="text-align:center;"><div style="font-size:40px; margin-bottom:16px;">🛴</div><h3>Пока пусто</h3><p>Здесь будут ваши поездки.</p></div>
-  </div>
-
-  <!-- МОДАЛКА ПРОФИЛЯ -->
-  <div class="modal" id="profileModal">
+  <!-- МОДАЛКА ОПЛАТЫ -->
+  <div class="modal" id="paymentModal">
     <div class="modal-content">
-      <div class="modal-header"><h2>Профиль</h2><button class="close-btn" onclick="closeModal('profileModal')">✕</button></div>
-      <div id="profileLoggedIn" style="display:none;">
-        <div style="background:var(--card-2); padding:16px; border-radius:16px; margin-bottom:24px;">
-          <div style="font-size:18px; font-weight:700;" id="userPhoneDisplay">+7 999 000-00-00</div>
-          <div style="color:var(--green); font-size:14px; margin-top:4px;">Авторизован</div>
-        </div>
-        <div class="menu-item" onclick="openScreen('historyScreen')"><span>📄 История поездок</span> <span>→</span></div>
-        <div class="menu-item" onclick="toast('Способ оплаты')"><span>💳 Способы оплаты</span> <span>→</span></div>
-        <button class="btn btn-book" style="width:100%; margin-top:24px;" onclick="logout()">Выйти</button>
+      <div class="modal-header">
+        <h2>Оплата поездки</h2>
+        <button class="close-btn" onclick="closeModal('paymentModal')">✕</button>
       </div>
-      <div id="profileLoggedOut">
-        <p style="color:var(--muted); margin:0 0 16px;">Войдите, чтобы арендовать самокат</p>
-        <input type="tel" id="phoneInput" placeholder="+7 999 000-00-00">
-        <button class="btn btn-start" style="width:100%;" onclick="login()">Войти по номеру</button>
+      <div style="text-align:center; margin-bottom:24px;">
+        <p style="color:var(--muted); margin:0;">Итого к оплате:</p>
+        <div style="font-size:42px; font-weight:800; color:var(--accent);" id="payAmount">0 ₽</div>
       </div>
+      <button class="btn btn-start" style="width:100%;" onclick="payWithSBP()">Оплатить через СБП</button>
+      <p style="font-size:12px; color:var(--muted); text-align:center; margin-top:16px;">Перевод на номер +7 985 805-33-95</p>
     </div>
   </div>
 
@@ -162,76 +105,33 @@
 
 <script>
 const API_BASE = 'https://skyy-server.onrender.com'; 
-const state = { scooters: [], userPos: [55.75, 37.61], map: null, markers: {}, selected: null, ride: null, isLoggedIn: false };
+const state = { scooters: [], userPos: [55.75, 37.61], map: null, markers: {}, selected: null, ride: null, userMarker: null };
 
 function toast(msg){ const t=document.getElementById('toast'); t.textContent=msg; t.classList.add('show'); setTimeout(()=>t.classList.remove('show'), 3000); }
-
-function openScreen(id){ document.getElementById(id).classList.add('active'); }
-function closeScreen(id){ document.getElementById(id).classList.remove('active'); }
-function openModal(id){ document.getElementById(id).classList.add('active'); }
 function closeModal(id){ document.getElementById(id).classList.remove('active'); }
-
-function openProfile(){
-  if(state.isLoggedIn){
-    document.getElementById('profileLoggedIn').style.display = 'block';
-    document.getElementById('profileLoggedOut').style.display = 'none';
-    document.getElementById('userPhoneDisplay').textContent = localStorage.getItem('skyy_phone') || 'Пользователь';
-  } else {
-    document.getElementById('profileLoggedIn').style.display = 'none';
-    document.getElementById('profileLoggedOut').style.display = 'block';
-  }
-  openModal('profileModal');
-}
-
-function login(){
-  const phone = document.getElementById('phoneInput').value;
-  if(!phone) { toast('Введите номер'); return; }
-  localStorage.setItem('skyy_phone', phone);
-  state.isLoggedIn = true;
-  closeModal('profileModal');
-  toast('Успешный вход!');
-}
-
-function logout(){
-  localStorage.removeItem('skyy_phone');
-  state.isLoggedIn = false;
-  closeModal('profileModal');
-  toast('Вы вышли');
-}
-if(localStorage.getItem('skyy_phone')) state.isLoggedIn = true;
 
 function initMap(){
   state.map = L.map('map', {zoomControl:false}).setView(state.userPos, 16);
   L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(state.map);
+  
   navigator.geolocation.getCurrentPosition((pos) => {
     state.userPos = [pos.coords.latitude, pos.coords.longitude];
     state.map.setView(state.userPos, 17);
-    L.circleMarker(state.userPos, {radius: 8, color: '#fff', weight: 3, fillColor: '#0ea5e9', fillOpacity: 1}).addTo(state.map);
+    state.userMarker = L.circleMarker(state.userPos, {radius: 8, color: '#fff', weight: 3, fillColor: '#0ea5e9', fillOpacity: 1}).addTo(state.map);
   }, (err) => { toast("Разрешите GPS!"); }, { enableHighAccuracy: true });
 }
-function locateMe(){ if(state.userPos) state.map.flyTo(state.userPos, 18); }
 
-let startY = 0; let currentY = 0;
-const sheet = document.getElementById('sheet');
-const grabber = document.getElementById('grabberArea');
-grabber.addEventListener('touchstart', e => { startY = e.touches[0].clientY; sheet.style.transition = 'none'; });
-grabber.addEventListener('touchmove', e => {
-  currentY = e.touches[0].clientY;
-  let diff = currentY - startY; if (diff < 0) diff = 0;
-  sheet.style.transform = `translateY(${diff}px)`;
-});
-grabber.addEventListener('touchend', () => {
-  sheet.style.transition = 'transform 0.3s';
-  if (currentY - startY > 100) sheet.style.transform = 'translateY(calc(100% - 80px))';
-  else sheet.style.transform = 'translateY(0)';
-});
+function locateMe(){ if(state.userPos) state.map.flyTo(state.userPos, 18); }
 
 async function loadScooters(){
   try {
     const r = await fetch(`${API_BASE}/api/scooters`);
+    if(!r.ok) throw new Error('Офлайн');
     const data = await r.json();
+    
     Object.values(state.markers).forEach(m => state.map.removeLayer(m));
-    state.markers = {}; state.scooters = data;
+    state.markers = {};
+    state.scooters = data;
 
     data.forEach(s => {
       const marker = L.marker([s.lat, s.lng], {
@@ -244,7 +144,10 @@ async function loadScooters(){
     renderList();
     document.getElementById('serverStatus').textContent = `Самокатов онлайн: ${data.length}`;
     document.getElementById('serverStatus').style.color = 'var(--green)';
-  } catch(e) { document.getElementById('serverStatus').textContent = 'Ошибка сети'; }
+  } catch(e) {
+    document.getElementById('serverStatus').textContent = 'Сервер офлайн';
+    document.getElementById('serverStatus').style.color = 'red';
+  }
 }
 
 function renderList(filterText = ''){
@@ -252,7 +155,8 @@ function renderList(filterText = ''){
   if(state.selected) return;
   let filtered = state.scooters;
   if(filterText) filtered = state.scooters.filter(s => s.id.toLowerCase().includes(filterText.toLowerCase()));
-  if(filtered.length === 0){ list.innerHTML = '<p style="text-align:center;color:var(--muted);margin-top:20px;">Самокатов не найдено</p>'; return; }
+  if(filtered.length === 0){ list.innerHTML = '<p style="text-align:center;color:var(--muted)">Нет самокатов</p>'; return; }
+  
   list.innerHTML = filtered.map(s => `
     <div class="scooter-list-item" onclick="selectScooterById('${s.id}')">
       <div style="font-size:32px; width:50px; text-align:center;">🛴</div>
@@ -268,48 +172,44 @@ function selectScooterById(id){ selectScooter(state.scooters.find(s => s.id === 
 function selectScooter(s){
   state.selected = s;
   state.map.flyTo([s.lat, s.lng], 18);
-  sheet.style.transform = 'translateY(0)';
+  document.getElementById('sheet').style.transform = 'translateY(0)';
+  
   document.getElementById('mainPanel').style.display = 'none';
   document.getElementById('detailPanel').style.display = 'flex';
   document.getElementById('detailPanel').innerHTML = `
     <div class="scooter-card">
       <div class="scooter-img">🛴</div>
-      <div class="scooter-info"><h2>${s.id}</h2><p>Ninebot Max</p><div style="color:var(--green); font-weight:700; margin-top:4px;">55 ₽ старт + 7 ₽/мин</div></div>
+      <div class="scooter-info">
+        <h2>${s.id}</h2><p>Ninebot Max</p>
+        <div style="color:var(--green); font-weight:700; margin-top:4px;">55 ₽ старт + 7 ₽/мин</div>
+      </div>
       <button class="sound-btn" onclick="ringScooter()">🔊</button>
     </div>
     <div class="btn-row">
-      <button class="btn btn-start" onclick="tryStartRide()">Старт</button>
-      <button class="btn btn-book" onclick="backToList()">Назад</button>
+      <button class="btn btn-start" onclick="startRide()">Старт</button>
+      <button class="btn btn-book" onclick="location.reload()">Назад</button>
     </div>
   `;
 }
 
-function backToList(){
-  state.selected = null;
-  document.getElementById('detailPanel').style.display = 'none';
-  document.getElementById('mainPanel').style.display = 'flex';
-  renderList();
-}
-
 async function ringScooter(){
   if(!state.selected) return;
-  toast('Прозвон...');
+  toast('Отправка сигнала...');
   await fetch(`${API_BASE}/api/scooter/${state.selected.id}/command`, { method: 'POST', body: 'CALL' });
-}
-
-function tryStartRide(){
-  if(!state.isLoggedIn) { toast('Войдите в профиль!'); openProfile(); return; }
-  startRide();
+  toast('Самокат звонит!');
 }
 
 async function startRide(){
+  if(!state.selected) return;
   await fetch(`${API_BASE}/api/scooter/${state.selected.id}/command`, { method: 'POST', body: 'START' });
   state.ride = { id: state.selected.id, start: Date.now() };
+  
   document.getElementById('detailPanel').innerHTML = `
     <h2 style="color:var(--green); text-align:center; margin-top:20px;">Поездка началась</h2>
     <div style="font-size:64px;font-weight:800;margin:30px 0;text-align:center" id="rideTimer">00:00</div>
     <button class="btn btn-start" style="width:100%" onclick="endRide()">Завершить</button>
   `;
+  
   setInterval(() => {
     if(!state.ride) return;
     const sec = Math.floor((Date.now() - state.ride.start) / 1000);
@@ -318,9 +218,37 @@ async function startRide(){
 }
 
 async function endRide(){
+  if(!state.ride) return;
+  const sec = Math.floor((Date.now() - state.ride.start) / 1000);
+  const cost = 55 + Math.ceil(sec / 60) * 7;
+  
   await fetch(`${API_BASE}/api/scooter/${state.ride.id}/command`, { method: 'POST', body: 'STOP' }).catch(()=>{});
   state.ride = null;
-  backToList();
+  
+  document.getElementById('payAmount').textContent = cost + ' ₽';
+  document.getElementById('paymentModal').classList.add('active');
+}
+
+// ОПЛАТА ЧЕРЕЗ СБП (ПО НОМЕРУ ТЕЛЕФОНА)
+function payWithSBP() {
+  const amount = document.getElementById('payAmount').textContent.replace(' ₽', '');
+  const phone = '79858053395'; // Твой номер
+  const bank = 'tinkoff'; // Твой банк (для формирования ссылки)
+  
+  // Универсальная ссылка для СБП (откроет приложение банка)
+  // В реальности для каждого банка своя ссылка, но это самая рабочая
+  const sbpLink = `https://qr.nspk.ru/AS1000L4O9L1L4O9L1L4O9L1L4O9L1L4?amount=${amount}&phone=${phone}`;
+  
+  // Так как мы не можем сгенерировать реальный QR без API банка, 
+  // мы просто открываем приложение Сбера/Тинькофф с переводом по номеру
+  const link = `https://www.tinkoff.ru/rm/${phone}/${amount}`; // Пример
+  
+  // Самое надежное - открыть приложение банка по ссылке (если настроено) 
+  // или показать окно с номером
+  window.location.href = `tel:${phone}`; // Заглушка для звонка, если ничего не сработает
+  alert(`Переведите ${amount} ₽ на номер +7 985 805-33-95 и нажмите ОК`);
+  closeModal('paymentModal');
+  location.reload();
 }
 
 initMap();
