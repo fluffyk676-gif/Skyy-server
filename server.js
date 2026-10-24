@@ -8,7 +8,6 @@ app.use(cors());
 app.use(express.json({ limit: '4mb' }));
 app.use(express.urlencoded({ extended: true }));
  
-// Код входа в админку. Лучше задать свой в Render → Environment → ADMIN_CODE
 const ADMIN_CODE = String(process.env.ADMIN_CODE || '2003');
  
 const scooters = {};
@@ -16,11 +15,12 @@ const users = {};
 const pendingTopups = {};
 const supportTickets = [];
 const rides = {};
-const reviews = {};          // заявки на завершение поездки (с фото)
-const finishedNotice = {};   // итог поездки для клиента (отдаётся один раз)
+const reviews = {};          
+const finishedNotice = {};   
  
-// Официальные парковки. Можно задать заранее через переменную PARKINGS (JSON-массив),
-// чтобы они не пропадали при перезапуске сервера: [{"name":"...","lat":55.75,"lng":37.61,"r":30}]
+// === ДОБАВЛЕНО: Очередь команд для прозвона ===
+const commands = {};
+ 
 let parkings = [];
 try {
   parkings = JSON.parse(process.env.PARKINGS || '[]')
@@ -28,7 +28,7 @@ try {
     .filter(p => isFinite(p.lat) && isFinite(p.lng));
 } catch (e) { console.log('PARKINGS: неверный JSON'); }
  
-const TARIFFS = { minute: 30, '30min': 150, '60min': 250 }; // списание на старте
+const TARIFFS = { minute: 30, '30min': 150, '60min': 250 };
 const PER_MINUTE = 7;
  
 function distM(a, b) {
@@ -40,11 +40,10 @@ function distM(a, b) {
 function zoneOf(s) {
   if (!parkings.length) return { inZone: null, zone: null };
   if (!s || s.lat == null) return { inZone: null, zone: null };
-  const z = parkings.find(p => distM(s, p) <= p.r + 20); // +20 м на погрешность GPS
+  const z = parkings.find(p => distM(s, p) <= p.r + 20);
   return { inZone: !!z, zone: z ? z.name : null };
 }
  
-// ---------- Защита админки ----------
 const attempts = {};
 function adminAuth(req, res, next) {
   const a = attempts[req.ip] || (attempts[req.ip] = { n: 0, until: 0 });
@@ -56,7 +55,7 @@ function adminAuth(req, res, next) {
 app.use('/api/admin', adminAuth);
 app.post('/api/admin/login', (req, res) => res.json({ success: true }));
  
-// ---------- 1. Координаты от трекеров ----------
+// ---------- 1. Координаты ----------
 app.post('/api/scooter/location', (req, res) => {
   const { id, lat, lon, battery } = req.body;
   if (id && lat && lon) {
@@ -68,6 +67,17 @@ app.post('/api/scooter/location', (req, res) => {
   }
   res.send('OK');
 });
+ 
+// === ДОБАВЛЕНО: Прозвон ===
+app.post('/api/scooter/:id/command', (req, res) => {
+  commands[req.params.id] = req.body.toString().toUpperCase() || req.body;
+  res.send('OK');
+});
+app.get('/api/scooter/:id/command', (req, res) => {
+  const cmd = commands[req.params.id];
+  if (cmd) { delete commands[req.params.id]; res.send(cmd); } else { res.send(''); }
+});
+// ============================
  
 app.get('/api/scooters', (req, res) => {
   const now = Date.now();
@@ -142,7 +152,6 @@ app.post('/api/toggle-pause', (req, res) => {
   res.json({ success: true, isPaused: ride.paused, pausedAt: ride.pausedAt, pausedMs: ride.pausedMs });
 });
  
-// Клиент не может завершить поездку сам: только отправить фото на проверку.
 app.post('/api/request-finish', (req, res) => {
   const { username, scooterId, photo } = req.body;
   const ride = rides[scooterId];
@@ -197,7 +206,7 @@ app.get('/api/my-ride/:username', (req, res) => {
   res.json({});
 });
  
-// ---------- Страница админки (код входа спрашивается на самой странице) ----------
+// ---------- 6. Админка ----------
 const ADMIN_HTML = `<!DOCTYPE html>
 <html lang="ru">
 <head>
@@ -280,7 +289,6 @@ function start() {
   initMap(); loadAll(); loadParks(); timer = setInterval(loadAll, 6000);
 }
  
-/* ---- Проверка фото ---- */
 async function loadReviews() {
   const data = await api('/api/admin/reviews');
   $('reviews').innerHTML = data.length ? data.map(r => {
@@ -301,7 +309,6 @@ async function reject(id) {
   await api('/api/admin/review-reject', 'POST', { id, comment: c }); loadReviews(); loadRides();
 }
  
-/* ---- Поездки ---- */
 async function loadRides() {
   const data = await api('/api/admin/rides');
   const st = { pending: 'фото на проверке', rejected: 'нужно переставить' };
@@ -311,7 +318,6 @@ async function loadRides() {
   }).join('') : 'Нет активных поездок';
 }
  
-/* ---- Пополнения ---- */
 async function loadTopups() {
   const data = await api('/api/admin/topups');
   $('topups').innerHTML = data.length ? data.map(i => \`<div class="card row">
@@ -320,9 +326,8 @@ async function loadTopups() {
 }
 async function topup(kind, id) { await api('/api/admin/' + kind + '-topup', 'POST', { id }); loadTopups(); }
  
-/* ---- Поддержка ---- */
 async function loadSupport() {
-  if (document.activeElement && $('support').contains(document.activeElement)) return; // не мешаем печатать ответ
+  if (document.activeElement && $('support').contains(document.activeElement)) return;
   const data = await api('/api/admin/support');
   $('support').innerHTML = data.length ? data.slice().reverse().map(i => \`<div class="card">
     <div class="muted">\${esc(i.time)}</div><b>\${esc(i.username)}</b><div style="margin-top:4px">\${esc(i.message)}</div>
@@ -339,7 +344,6 @@ async function loadAll() {
   catch (e) { if (e.auth) logout(); }
 }
  
-/* ---- Парковки ---- */
 function initMap() {
   if (pmap) return;
   pmap = L.map('pmap').setView([55.75, 37.61], 11);
@@ -377,7 +381,6 @@ if (CODE) api('/api/admin/login', 'POST', {}).then(start).catch(() => sessionSto
 </html>
 `;
  
-// ---------- 6. Поддержка / пополнения / парковки в админке ----------
 app.get('/admin', (req, res) => res.send(ADMIN_HTML));
  
 app.get('/api/admin/reviews', (req, res) =>
@@ -386,7 +389,7 @@ app.get('/api/admin/reviews', (req, res) =>
 app.post('/api/admin/review-approve', (req, res) => {
   const rv = reviews[req.body.id];
   if (!rv) return res.status(404).json({ error: 'Заявка не найдена' });
-  if (rides[rv.scooterId]) finalizeRide(rv.scooterId, rv.requestedAt); // считаем до момента отправки фото
+  if (rides[rv.scooterId]) finalizeRide(rv.scooterId, rv.requestedAt); 
   delete reviews[rv.id];
   res.json({ success: true });
 });
@@ -465,6 +468,18 @@ app.get('/tracker.html', (req, res) => {
           }, { enableHighAccuracy: true });
         }
         setInterval(sendLocation, 5000); sendLocation();
+
+        // === ДОБАВЛЕНО: Проверка прозвона ===
+        setInterval(() => {
+          fetch(API + '/api/scooter/' + ID + '/command')
+            .then(r => r.text())
+            .then(cmd => {
+              if (cmd === 'CALL') {
+                alert('🔔 ВНИМАНИЕ! СИРЕНА!');
+              }
+            });
+        }, 3000);
+        // ==================================
       </script>
     </body></html>
   `);
