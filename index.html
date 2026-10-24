@@ -2,307 +2,322 @@
 <html lang="ru">
 <head>
 <meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
+<meta name="theme-color" content="#101114" />
 <title>Skyy — Кикшеринг</title>
-<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.css" />
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.js"></script>
 <style>
-  :root{ --bg:#121212; --card:#1c1c1e; --card-2:#2d2d2d; --accent:#ff5a1f; --green:#22c55e; --muted:#888; }
-  body{ --bg-theme: #121212; --card-theme: #1c1c1e; --text-theme: #fff; margin:0; background:var(--bg-theme); color:var(--text-theme); overflow:hidden; font-family:-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; transition: 0.3s; }
-  #app{position:relative; height:100dvh; max-width:480px; margin:0 auto; overflow:hidden}
-  #map{position:absolute; inset:0; z-index:1; background:#000}
-  .leaflet-tile-pane { filter: invert(1) hue-rotate(180deg) brightness(0.85) contrast(1.2); }
-  
-  .topbar{position:absolute; top:0; left:0; right:0; z-index:500; padding:16px; display:flex; gap:8px; pointer-events:none; align-items:center}
-  .topbar > * { pointer-events: auto; }
-  .btn-icon{width:44px; height:44px; background:var(--card); border-radius:14px; display:grid; place-items:center; color:var(--text-theme); border:none; cursor:pointer; box-shadow: 0 4px 10px rgba(0,0,0,0.2);}
-  .search-bar{flex:1; background:var(--card); border-radius:14px; padding:12px 12px 12px 40px; font-size:14px; color:var(--text-theme); border:none; outline:none; box-shadow: 0 4px 10px rgba(0,0,0,0.2); position:relative;}
-  .search-wrapper { position: relative; flex: 1; }
-  .search-wrapper svg { position: absolute; left: 12px; top: 50%; transform: translateY(-50%); fill: var(--muted); width: 18px; height: 18px; }
-
-  .sheet{position:absolute; left:0; right:0; bottom:0; z-index:500; background:var(--card); border-radius:24px 24px 0 0; padding:20px; max-height:85vh; display:flex; flex-direction:column; transition: transform 0.4s cubic-bezier(0.2, 0.8, 0.2, 1); box-shadow: 0 -5px 20px rgba(0,0,0,0.3);}
-  .grabber{width:40px; height:5px; background:#555; border-radius:3px; margin:0 auto 15px;}
-  
-  .btn{width:100%; padding:16px; border:none; border-radius:16px; font-size:16px; font-weight:700; cursor:pointer; text-align:center; background:var(--accent); color:#fff; margin-top:10px; display:flex; justify-content:center; align-items:center; gap: 8px;}
-  .btn-sec{background:var(--card-2); color:var(--text-theme);}
-  .btn svg { width: 20px; height: 20px; fill: currentColor; }
-  
-  .modal{display:none; position:absolute; inset:0; background:rgba(0,0,0,0.8); z-index:1000; align-items:flex-end; justify-content:center; opacity: 0; transition: opacity 0.3s;}
-  .modal.active{display:flex; opacity: 1;}
-  .modal-content{background:var(--card); width:100%; border-radius:24px 24px 0 0; padding:24px; text-align:center; max-height:90vh; overflow-y:auto; transform: translateY(100%); transition: transform 0.3s;}
-  .modal.active .modal-content { transform: translateY(0); }
-  input, textarea{width:100%; padding:16px; background:var(--card-2); border:none; border-radius:12px; color:var(--text-theme); margin-bottom:12px; font-size:16px; box-sizing:border-box; outline: none;}
-  
-  /* Красивый маркер самоката (в виде капли с иконкой) */
-  .marker { width: 46px; height: 46px; background: var(--accent); border-radius: 50% 50% 50% 0; transform: rotate(-45deg); display: grid; place-items: center; border: 3px solid #fff; box-shadow: 0 4px 15px rgba(255, 90, 31, 0.4); cursor: pointer; }
-  .marker svg { width: 24px; height: 24px; transform: rotate(45deg); fill: #fff; }
-  
-  .user-dot { width: 20px; height: 20px; border-radius: 50%; background: #0ea5e9; border: 3px solid #fff; box-shadow: 0 0 0 6px rgba(14,165,233,0.2); }
-  
-  .tariff-row{display:flex; justify-content:space-between; align-items:center; padding:16px; background:var(--card-2); border-radius:14px; margin-bottom:10px; cursor:pointer; border:2px solid transparent; transition: 0.2s;}
-  .tariff-row.selected{border-color:var(--accent); background: rgba(255, 90, 31, 0.1);}
-  
-  .scooter-item { padding: 16px; border-bottom: 1px solid #333; display: flex; justify-content: space-between; align-items: center; cursor: pointer; transition: background 0.2s;}
-  .scooter-item:hover { background: rgba(255,255,255,0.05); }
-  .scooter-info b { font-size: 16px; display: block; margin-bottom: 4px;}
-  .scooter-info span { font-size: 12px; color: var(--muted); }
-  .scooter-price { color: var(--green); font-weight: 700; font-size: 14px; }
+:root{--bg:#f3f4f6;--card:#fff;--card2:#eceef2;--text:#14161a;--muted:#6b7280;--line:#e2e5ea;--accent:#ff5a1f;--green:#16a34a;--red:#ef4444;--shadow:0 6px 24px rgba(0,0,0,.14)}
+:root[data-theme=dark]{--bg:#101114;--card:#1b1d22;--card2:#272a31;--text:#f4f5f7;--muted:#8d93a0;--line:#2c2f37;--green:#22c55e;--shadow:0 6px 24px rgba(0,0,0,.5)}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;height:100%;overflow:hidden;background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;transition:background .3s,color .3s}
+#app{position:relative;height:100dvh;max-width:480px;margin:0 auto;overflow:hidden}
+#map{position:absolute;inset:0;z-index:1;background:var(--bg)}
+.leaflet-control-attribution{font-size:9px!important;opacity:.6}
+.topbar{position:absolute;top:0;left:0;right:0;z-index:500;padding:calc(12px + env(safe-area-inset-top)) 12px 0;display:flex;gap:8px;align-items:center}
+.logo{height:44px;padding:0 14px;border-radius:14px;background:var(--accent);color:#fff;font-weight:800;font-size:20px;display:grid;place-items:center;box-shadow:var(--shadow);letter-spacing:.3px}
+.btn-icon{width:44px;height:44px;flex:none;background:var(--card);border-radius:14px;display:grid;place-items:center;color:var(--text);border:none;cursor:pointer;box-shadow:var(--shadow)}
+.btn-icon svg,.search svg{width:22px;height:22px;fill:currentColor}
+.search{flex:1;position:relative;min-width:0}
+.search svg{position:absolute;left:12px;top:11px;width:20px;height:20px;color:var(--muted)}
+.search input{width:100%;height:44px;border:none;outline:none;border-radius:14px;background:var(--card);color:var(--text);padding:0 12px 0 40px;font-size:15px;box-shadow:var(--shadow);margin:0}
+.fab{position:absolute;right:12px;z-index:400;transition:bottom .35s cubic-bezier(.2,.8,.2,1)}
+.sheet{position:absolute;left:0;right:0;bottom:0;z-index:500;background:var(--card);border-radius:24px 24px 0 0;padding:10px 16px calc(14px + env(safe-area-inset-bottom));box-shadow:0 -6px 24px rgba(0,0,0,.25);transition:transform .35s cubic-bezier(.2,.8,.2,1)}
+.sheet.min{transform:translateY(calc(100% - 78px))}
+.grab{width:100%;padding:4px 0 10px;cursor:pointer}.grab i{display:block;width:40px;height:5px;border-radius:3px;background:var(--line);margin:0 auto}
+.sheet h2{margin:0 0 4px;font-size:19px}.sub{font-size:13px;color:var(--muted);margin-bottom:8px}
+#list{max-height:34vh;overflow-y:auto;margin:0 -6px}
+.item{display:flex;align-items:center;gap:12px;padding:10px 6px;border-radius:14px;cursor:pointer}
+.item:active{background:var(--card2)}
+.ico{width:44px;height:44px;border-radius:12px;background:var(--card2);display:grid;place-items:center;flex:none}
+.ico svg{width:30px;height:30px}
+.item .i{flex:1;min-width:0}.item b{display:block;font-size:15px}.item small{color:var(--muted);font-size:12px}
+.bat{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:5px}
+.price{font-weight:700;color:var(--green);font-size:14px}
+.btn{width:100%;padding:15px;border:none;border-radius:16px;font-size:16px;font-weight:700;cursor:pointer;background:var(--accent);color:#fff;margin-top:10px;display:flex;justify-content:center;align-items:center;gap:8px}
+.btn:active{transform:scale(.98)}.btn.sec{background:var(--card2);color:var(--text)}.btn.red{background:var(--red)}
+.btn svg{width:20px;height:20px;fill:currentColor}
+.modal{position:absolute;inset:0;background:rgba(0,0,0,.6);z-index:1000;display:flex;align-items:flex-end;opacity:0;pointer-events:none;transition:opacity .25s}
+.modal.active{opacity:1;pointer-events:auto}
+.mc{background:var(--card);width:100%;border-radius:24px 24px 0 0;padding:22px 18px calc(18px + env(safe-area-inset-bottom));max-height:92vh;overflow-y:auto;transform:translateY(100%);transition:transform .3s cubic-bezier(.2,.8,.2,1)}
+.modal.active .mc{transform:none}.mc h2{margin:0 0 14px}
+input,textarea{width:100%;padding:15px;background:var(--card2);border:2px solid transparent;border-radius:12px;color:var(--text);margin-bottom:10px;font-size:16px;outline:none;font-family:inherit}
+input:focus,textarea:focus{border-color:var(--accent)}
+.tariff{display:flex;justify-content:space-between;align-items:center;padding:14px;background:var(--card2);border-radius:14px;margin-bottom:8px;cursor:pointer;border:2px solid transparent}
+.tariff.sel{border-color:var(--accent);background:rgba(255,90,31,.1)}.tariff small{color:var(--muted)}
+.set{display:flex;justify-content:space-between;align-items:center;padding:14px;background:var(--card2);border-radius:14px;margin-bottom:8px}
+.sw{width:50px;height:30px;border-radius:15px;background:var(--line);position:relative;cursor:pointer;transition:.2s;border:none}
+.sw::after{content:"";position:absolute;top:3px;left:3px;width:24px;height:24px;border-radius:50%;background:#fff;transition:.2s}
+:root[data-theme=dark] .sw{background:var(--accent)}:root[data-theme=dark] .sw::after{left:23px}
+.timer{font-size:68px;font-weight:800;margin:12px 0;font-variant-numeric:tabular-nums;text-align:center}
+.row{display:flex;gap:10px}
+.pin{position:relative;width:44px;height:52px;filter:drop-shadow(0 4px 6px rgba(0,0,0,.35))}
+.pin svg.bg{position:absolute;inset:0;width:44px;height:52px}
+.pin .ic{position:absolute;left:9px;top:6px;width:26px;height:26px;fill:#fff}
+.pin .b{position:absolute;right:-6px;top:-4px;font-size:10px;font-weight:700;color:#fff;border-radius:8px;padding:1px 5px;border:2px solid #fff}
+.user-dot{width:18px;height:18px;border-radius:50%;background:#0ea5e9;border:3px solid #fff;box-shadow:0 0 0 8px rgba(14,165,233,.25)}
+#toast{position:absolute;left:50%;top:calc(70px + env(safe-area-inset-top));transform:translate(-50%,-20px);background:var(--text);color:var(--bg);padding:11px 18px;border-radius:14px;font-size:14px;font-weight:600;z-index:2000;opacity:0;transition:.25s;pointer-events:none;max-width:90%;text-align:center}
+#toast.show{opacity:1;transform:translate(-50%,0)}
 </style>
 </head>
 <body>
 <div id="app">
   <div id="map"></div>
-  
+  <div id="toast"></div>
+ 
   <div class="topbar">
-    <div style="font-weight:800; font-size:22px; color:var(--accent);">Skyy</div>
-    <div class="search-wrapper">
-      <svg viewBox="0 0 24 24"><path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"/></svg>
-      <input type="text" id="searchInput" class="search-bar" placeholder="Поиск самоката..." oninput="filterScooters()">
+    <div class="logo">Skyy</div>
+    <div class="search">
+      <svg viewBox="0 0 24 24"><path d="M15.5 14h-.8l-.3-.3A6.5 6.5 0 1 0 14 15.5l.3.3v.8l5 5 1.5-1.5-5-5zm-6 0a4.5 4.5 0 1 1 0-9 4.5 4.5 0 0 1 0 9z"/></svg>
+      <input id="searchInput" placeholder="Номер самоката" oninput="renderAll()" />
     </div>
-    <button class="btn-icon" onclick="openProfile()">
-      <svg viewBox="0 0 24 24" style="width:24px;height:24px;fill:var(--text-theme)"><path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/></svg>
-    </button>
+    <button class="btn-icon" onclick="toggleTheme()" aria-label="Тема" id="themeBtn"></button>
+    <button class="btn-icon" onclick="openProfile()" aria-label="Профиль"><svg viewBox="0 0 24 24"><path d="M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8zm0 2c-2.7 0-8 1.3-8 4v2h16v-2c0-2.7-5.3-4-8-4z"/></svg></button>
   </div>
-  
+ 
+  <button class="btn-icon fab" id="locBtn" onclick="locate()" aria-label="Где я"><svg viewBox="0 0 24 24"><path d="M12 8a4 4 0 1 0 0 8 4 4 0 0 0 0-8zm8.9 3A9 9 0 0 0 13 3.1V1h-2v2.1A9 9 0 0 0 3.1 11H1v2h2.1A9 9 0 0 0 11 20.9V23h2v-2.1a9 9 0 0 0 7.9-7.9H23v-2h-2.1zM12 19a7 7 0 1 1 0-14 7 7 0 0 1 0 14z"/></svg></button>
+ 
   <div class="sheet" id="sheet">
-    <div class="grabber"></div>
-    <h2 style="margin:0 0 15px; font-size: 20px;">Самокаты рядом</h2>
-    <div id="scooterList" style="overflow-y:auto; max-height:40vh; margin-bottom:10px;"></div>
-    <div style="font-size:13px; color:var(--muted); text-align:center; margin-top: auto;" id="serverStatus">Подключение...</div>
+    <div class="grab" onclick="toggleSheet()"><i></i></div>
+    <h2>Самокаты рядом</h2>
+    <div class="sub" id="status">Подключение…</div>
+    <div id="list"></div>
   </div>
-
-  <!-- МОДАЛКИ -->
-  <div class="modal" id="tariffModal">
-    <div class="modal-content">
-      <h2 style="margin-top:0;">Тариф</h2>
-      <div class="tariff-row selected" onclick="selectTariff('minute', this)">
-        <div style="text-align:left;"><b>Поминутно</b><br><small style="color:var(--muted)">Старт 30 ₽</small></div>
-        <div style="font-weight:800;">7 ₽/мин</div>
-      </div>
-      <div class="tariff-row" onclick="selectTariff('30min', this)">
-        <div style="text-align:left;"><b>На 30 минут</b><br><small style="color:var(--muted)">Фиксированно</small></div>
-        <div style="font-weight:800;">150 ₽</div>
-      </div>
-      <div class="tariff-row" onclick="selectTariff('60min', this)">
-        <div style="text-align:left;"><b>На 1 час</b><br><small style="color:var(--muted)">Фиксированно</small></div>
-        <div style="font-weight:800;">250 ₽</div>
-      </div>
-      <button class="btn" onclick="confirmTariff()">Поехали!</button>
-      <button class="btn btn-sec" onclick="document.getElementById('tariffModal').classList.remove('active')">Отмена</button>
+ 
+  <div class="modal" id="tariffModal"><div class="mc">
+    <h2>Выберите тариф</h2>
+    <div class="tariff sel" onclick="selTariff('minute',this)"><div><b>Поминутно</b><br><small>Старт 30 ₽, затем 7 ₽/мин</small></div><b>7 ₽/мин</b></div>
+    <div class="tariff" onclick="selTariff('30min',this)"><div><b>30 минут</b><br><small>Фиксированно</small></div><b>150 ₽</b></div>
+    <div class="tariff" onclick="selTariff('60min',this)"><div><b>1 час</b><br><small>Фиксированно</small></div><b>250 ₽</b></div>
+    <button class="btn" onclick="confirmTariff()">Поехали</button>
+    <button class="btn sec" onclick="closeM('tariffModal')">Отмена</button>
+  </div></div>
+ 
+  <div class="modal" id="rideModal"><div class="mc">
+    <h2 style="color:var(--green);text-align:center" id="rideStatus">В пути</h2>
+    <div class="timer" id="rideTimer">00:00</div>
+    <div class="row">
+      <button class="btn sec" onclick="toast('Фонарь включён')"><svg viewBox="0 0 24 24"><path d="M9 21c0 .6.4 1 1 1h4c.6 0 1-.4 1-1v-1H9v1zm3-19a7 7 0 0 0-4 12.7V17c0 .6.4 1 1 1h6c.6 0 1-.4 1-1v-2.3A7 7 0 0 0 12 2z"/></svg>Фонарь</button>
+      <button class="btn sec" id="pauseBtn" onclick="togglePause()"></button>
     </div>
-  </div>
-
-  <div class="modal" id="rideModal">
-    <div class="modal-content">
-      <h2 style="color:var(--green); margin-top:0;" id="rideStatus">Поездка</h2>
-      <div style="font-size:64px; font-weight:800; margin:20px 0; font-variant-numeric: tabular-nums;" id="rideTimer">00:00</div>
-      <div style="display:flex; gap:10px;">
-        <button class="btn btn-sec" onclick="toggleLight()">
-          <svg viewBox="0 0 24 24"><path d="M9 21c0 .55.45 1 1 1h4c.55 0 1-.45 1-1v-1H9v1zm3-19C8.14 2 5 5.14 5 9c0 2.38 1.19 4.47 3 5.74V17c0 .55.45 1 1 1h6c.55 0 1-.45 1-1v-2.26c1.81-1.27 3-3.36 3-5.74 0-3.86-3.14-7-7-7zm2.85 11.1l-.85.6V16h-4v-2.3l-.85-.6C7.8 12.16 7 10.63 7 9c0-2.76 2.24-5 5-5s5 2.24 5 5c0 1.63-.8 3.16-2.15 4.1z"/></svg>
-          Фонарь
-        </button>
-        <button class="btn btn-sec" onclick="togglePause()" id="pauseBtn">
-          <svg viewBox="0 0 24 24"><path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/></svg>
-          Пауза
-        </button>
-      </div>
-      <button class="btn" style="background:#ef4444; margin-top:15px;" onclick="endRide()">Завершить</button>
+    <button class="btn red" onclick="endRide()">Завершить поездку</button>
+  </div></div>
+ 
+  <div class="modal" id="profileModal"><div class="mc">
+    <h2>Профиль</h2>
+    <div id="authForm">
+      <input id="usernameInput" placeholder="Логин" autocomplete="username" />
+      <input id="passwordInput" type="password" placeholder="Пароль" autocomplete="current-password" />
+      <button class="btn" onclick="auth('login')">Войти</button>
+      <button class="btn sec" onclick="auth('register')">Создать аккаунт</button>
     </div>
-  </div>
-
-  <div class="modal" id="profileModal">
-    <div class="modal-content">
-      <h2 style="margin-top:0;">Профиль</h2>
-      <div id="authForm">
-        <input type="text" id="usernameInput" placeholder="Логин">
-        <input type="password" id="passwordInput" placeholder="Пароль">
-        <button class="btn" onclick="login()">Войти</button>
-        <button class="btn btn-sec" onclick="register()">Регистрация</button>
-        <button class="btn btn-sec" onclick="closeProfile()">Закрыть</button>
-      </div>
-      <div id="loggedIn" style="display:none;">
-        <p style="font-size:14px; color:var(--muted); margin-bottom:5px;">Баланс</p>
-        <h1 style="font-size:48px; margin:0 0 20px; color:var(--green);" id="userBalance">0 ₽</h1>
-        <button class="btn" onclick="topUp()">Пополнить</button>
-        <button class="btn btn-sec" onclick="openSupport()">Поддержка</button>
-        <button class="btn btn-sec" onclick="logout()">Выйти</button>
-        <button class="btn btn-sec" onclick="closeProfile()">Закрыть</button>
-      </div>
+    <div id="loggedIn" style="display:none">
+      <div class="sub" style="margin:0">Баланс</div>
+      <div style="font-size:46px;font-weight:800;color:var(--green);margin-bottom:10px" id="userBalance">0 ₽</div>
+      <button class="btn" onclick="openM('topupModal')">Пополнить</button>
+      <button class="btn sec" onclick="closeM('profileModal');openM('supportModal')">Поддержка</button>
+      <button class="btn sec" onclick="logout()">Выйти</button>
     </div>
-  </div>
-
-  <div class="modal" id="supportModal">
-    <div class="modal-content">
-      <h2 style="margin-top:0;">Поддержка</h2>
-      <textarea id="supportMsg" rows="3" placeholder="Опишите проблему..."></textarea>
-      <button class="btn" onclick="sendSupport()">Отправить</button>
-      <button class="btn btn-sec" onclick="document.getElementById('supportModal').classList.remove('active')">Назад</button>
-    </div>
-  </div>
-
-  <div class="modal" id="topupModal">
-    <div class="modal-content">
-      <h2 style="margin-top:0;">Пополнение</h2>
-      <p style="color:var(--muted); font-size:14px; margin-bottom:20px;">Переведите на номер <b style="color:#fff;">+7 985 805-33-95</b> (Сбер)</p>
-      <input type="number" id="topupAmount" placeholder="Сумма в рублях">
-      <button class="btn" onclick="confirmTopup()">Я перевел</button>
-      <button class="btn btn-sec" onclick="document.getElementById('topupModal').classList.remove('active')">Отмена</button>
-    </div>
-  </div>
+    <div class="set" style="margin-top:14px"><span>Тёмная тема</span><button class="sw" onclick="toggleTheme()" aria-label="Переключить тему"></button></div>
+    <button class="btn sec" onclick="closeM('profileModal')">Закрыть</button>
+  </div></div>
+ 
+  <div class="modal" id="supportModal"><div class="mc">
+    <h2>Поддержка</h2>
+    <textarea id="supportMsg" rows="3" placeholder="Опишите проблему"></textarea>
+    <button class="btn" onclick="sendSupport()">Отправить</button>
+    <button class="btn sec" onclick="closeM('supportModal')">Назад</button>
+  </div></div>
+ 
+  <div class="modal" id="topupModal"><div class="mc">
+    <h2>Пополнение</h2>
+    <p style="color:var(--muted);font-size:14px">Переведите на номер <b style="color:var(--text)">+7 985 805-33-95</b> (Сбер), затем укажите сумму.</p>
+    <input type="number" id="topupAmount" placeholder="Сумма в рублях" inputmode="numeric" />
+    <button class="btn" onclick="confirmTopup()">Я перевёл</button>
+    <button class="btn sec" onclick="closeM('topupModal')">Отмена</button>
+  </div></div>
 </div>
-
+ 
 <script>
-const API = 'https://skyy-server.onrender.com';
-// SVG-иконка самоката для маркера
-const scooterSvg = `<svg viewBox="0 0 24 24"><path d="M19 7c0-1.1-.9-2-2-2h-3v2h3v2.65L13.52 14H10V9H6c-2.21 0-4 1.79-4 4v3h2c0 1.66 1.34 3 3 3s3-1.34 3-3h4.48L19 10.35V7zM7 17c-.55 0-1-.45-1-1h2c0 .55-.45 1-1 1z"/><path d="M12 18c0 1.66-1.34 3-3 3s-3-1.34-3-3 1.34-3 3-3 3 1.34 3 3zm-2 0c0-.55-.45-1-1-1s-1 .45-1 1 .45 1 1 1 1-.45 1-1z"/></svg>`;
-
-let user = JSON.parse(localStorage.getItem('skyy_user')) || null;
-let currentScooter = null;
-let selectedTariff = 'minute';
-let currentRide = null;
-let rideInterval = null;
-let isPaused = false;
-let allScooters = [];
-
-const map = L.map('map', {zoomControl:false, maxZoom: 19}).setView([55.75, 37.61], 16);
-L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19 }).addTo(map);
-
+const API = location.hostname.includes('onrender.com') || location.protocol==='file:' ? 'https://skyy-server.onrender.com' : location.origin;
+const $ = id => document.getElementById(id);
+const SC = '<svg viewBox="0 0 24 24"><path fill="currentColor" d="M19 7a2 2 0 0 0-2-2h-3v2h3v2.7L13.5 14H10V9H6a4 4 0 0 0-4 4v3h2a3 3 0 0 0 6 0h4.5L19 10.4V7zM7 18a1 1 0 0 1-1-1h2a1 1 0 0 1-1 1z"/></svg>';
+const ICO = {moon:'<svg viewBox="0 0 24 24"><path d="M12.3 3a9 9 0 1 0 8.7 11.5A7 7 0 0 1 12.3 3z" fill="currentColor"/></svg>',sun:'<svg viewBox="0 0 24 24"><path fill="currentColor" d="M12 7a5 5 0 1 0 0 10 5 5 0 0 0 0-10zM11 1h2v3h-2zM11 20h2v3h-2zM1 11h3v2H1zM20 11h3v2h-3zM4.2 5.6l1.4-1.4 2.1 2.1-1.4 1.4zM16.3 17.7l1.4-1.4 2.1 2.1-1.4 1.4zM4.2 18.4l2.1-2.1 1.4 1.4-2.1 2.1zM16.3 6.3l2.1-2.1 1.4 1.4-2.1 2.1z"/></svg>'};
+const PAUSE = '<svg viewBox="0 0 24 24"><path d="M6 19h4V5H6zm8-14v14h4V5z"/></svg>Пауза', PLAY = '<svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>Продолжить';
+ 
+let user = null; try { user = JSON.parse(localStorage.getItem('skyy_user')); } catch(e){}
+let theme = localStorage.getItem('skyy_theme') || 'dark';
+let allScooters = [], currentScooter = null, selectedTariff = 'minute', ride = null, timerId = null, userPos = null;
+ 
+/* ---------- ТЕМА ---------- */
+function applyTheme(){
+  document.documentElement.dataset.theme = theme;
+  document.querySelector('meta[name=theme-color]').content = theme==='dark' ? '#101114' : '#f3f4f6';
+  $('themeBtn').innerHTML = theme==='dark' ? ICO.sun : ICO.moon;
+  if (window.map) setTiles();
+}
+function toggleTheme(){ theme = theme==='dark' ? 'light' : 'dark'; localStorage.setItem('skyy_theme', theme); applyTheme(); }
+ 
+/* ---------- КАРТА ---------- */
+const map = L.map('map', {zoomControl:false, maxZoom:19, attributionControl:true}).setView([55.75,37.61], 15);
+map.attributionControl.setPrefix('');
+let tiles, fallback = false;
+function setTiles(){
+  if (tiles) map.removeLayer(tiles);
+  const url = fallback ? 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png'
+    : `https://{s}.basemaps.cartocdn.com/${theme==='dark'?'dark_all':'light_all'}/{z}/{x}/{y}{r}.png`;
+  tiles = L.tileLayer(url, {maxZoom:19, subdomains:'abcd', attribution:'© OpenStreetMap © CARTO'}).addTo(map);
+  tiles.on('tileerror', () => { if(!fallback){ fallback = true; setTiles(); } });
+  $('map').style.filter = fallback && theme==='dark' ? 'invert(1) hue-rotate(180deg) brightness(.9)' : '';
+}
+const layer = L.layerGroup().addTo(map);
+applyTheme();
+ 
+function batColor(b){ return b>50 ? '#22c55e' : b>20 ? '#f59e0b' : '#ef4444'; }
+function pinIcon(s){
+  const b = s.battery ?? 100;
+  return L.divIcon({className:'', iconSize:[44,52], iconAnchor:[22,50], html:
+   `<div class="pin"><svg class="bg" viewBox="0 0 44 52"><path d="M22 51C22 51 3 33 3 20a19 19 0 0 1 38 0c0 13-19 31-19 31z" fill="#ff5a1f" stroke="#fff" stroke-width="3"/></svg><svg class="ic" viewBox="0 0 24 24"><path d="M19 7a2 2 0 0 0-2-2h-3v2h3v2.7L13.5 14H10V9H6a4 4 0 0 0-4 4v3h2a3 3 0 0 0 6 0h4.5L19 10.4V7zM7 18a1 1 0 0 1-1-1h2a1 1 0 0 1-1 1z"/></svg><span class="b" style="background:${batColor(b)}">${b}%</span></div>`});
+}
+ 
+function locate(){
+  if (userPos) map.flyTo(userPos, 17); else toast('Включите геолокацию в браузере');
+}
 if (navigator.geolocation) {
-  navigator.geolocation.watchPosition((pos) => {
-    const latlng = [pos.coords.latitude, pos.coords.longitude];
-    if (!window.userMarker) {
-      window.userMarker = L.marker(latlng, { icon: L.divIcon({ html: '<div class="user-dot"></div>', iconSize: [20,20], iconAnchor: [10,10] }) }).addTo(map);
-      map.setView(latlng, 17);
-    } else {
-      window.userMarker.setLatLng(latlng);
-    }
-  }, (err) => {}, { enableHighAccuracy: true });
+  navigator.geolocation.watchPosition(p => {
+    userPos = [p.coords.latitude, p.coords.longitude];
+    if (!window.um) { window.um = L.marker(userPos, {icon:L.divIcon({className:'', html:'<div class="user-dot"></div>', iconSize:[18,18], iconAnchor:[9,9]}), zIndexOffset:1000}).addTo(map); map.setView(userPos, 16); renderAll(); }
+    else window.um.setLatLng(userPos);
+  }, () => {}, {enableHighAccuracy:true, maximumAge:5000});
 }
-
-async function loadScooters() {
+ 
+/* ---------- САМОКАТЫ ---------- */
+function dist(a,b){ const R=6371000,r=Math.PI/180,dLa=(b[0]-a[0])*r,dLo=(b[1]-a[1])*r;
+  const x=Math.sin(dLa/2)**2+Math.cos(a[0]*r)*Math.cos(b[0]*r)*Math.sin(dLo/2)**2; return 2*R*Math.asin(Math.sqrt(x)); }
+function fmtD(m){ return m<1000 ? Math.round(m/10)*10+' м' : (m/1000).toFixed(1)+' км'; }
+ 
+async function loadScooters(){
   try {
-    const r = await fetch(API + '/api/scooters');
-    const data = await r.json();
-    allScooters = data;
-    document.getElementById('serverStatus').innerText = `Найдено: ${data.length}`;
-    renderScooters(data);
-  } catch (e) { document.getElementById('serverStatus').innerText = 'Ошибка сети'; }
+    const r = await fetch(API+'/api/scooters'); allScooters = await r.json();
+    $('status').textContent = allScooters.length ? `Свободно: ${allScooters.length}` : 'Рядом пока нет самокатов';
+    renderAll();
+  } catch(e){ $('status').textContent = 'Нет связи с сервером. Повторяем…'; }
 }
-
-function renderScooters(data) {
-  map.eachLayer(layer => { if(layer instanceof L.Marker && layer !== window.userMarker) map.removeLayer(layer); });
-  document.getElementById('scooterList').innerHTML = '';
-  
+function renderAll(){
+  const q = $('searchInput').value.trim().toLowerCase();
+  let data = allScooters.filter(s => s.lat && s.id.toLowerCase().includes(q));
+  if (userPos) data.forEach(s => s.d = dist(userPos,[s.lat,s.lng]));
+  data.sort((a,b) => (a.d ?? 0) - (b.d ?? 0));
+  layer.clearLayers();
+  const list = $('list'); list.innerHTML = '';
+  if (!data.length) list.innerHTML = '<div class="sub" style="padding:10px 6px">Ничего не найдено</div>';
   data.forEach(s => {
-    // Красивый SVG-маркер
-    L.marker([s.lat, s.lng], { icon: L.divIcon({html:`<div class="marker">${scooterSvg}</div>`, iconSize:[46,46], iconAnchor:[23,46]}) })
-      .addTo(map).on('click', () => selectScooter(s));
-      
-    const div = document.createElement('div');
-    div.className = 'scooter-item';
-    div.innerHTML = `
-      <div class="scooter-info">
-        <b>${s.id}</b>
-        <span>Заряд: ${s.battery || 100}%</span>
-      </div>
-      <div class="scooter-price">30 ₽</div>
-    `;
-    div.onclick = () => selectScooter(s);
-    document.getElementById('scooterList').appendChild(div);
+    L.marker([s.lat,s.lng], {icon:pinIcon(s)}).addTo(layer).on('click', () => selectScooter(s));
+    const d = document.createElement('div'); d.className = 'item';
+    const b = s.battery ?? 100;
+    d.innerHTML = `<div class="ico" style="color:var(--accent)">${SC}</div><div class="i"><b>${s.id}</b><small><span class="bat" style="background:${batColor(b)}"></span>${b}%${s.d!=null?' · '+fmtD(s.d):''}</small></div><div class="price">от 30 ₽</div>`;
+    d.onclick = () => { map.flyTo([s.lat,s.lng], 18); selectScooter(s); };
+    list.appendChild(d);
   });
 }
-
-function filterScooters() {
-  const query = document.getElementById('searchInput').value.toLowerCase();
-  const filtered = allScooters.filter(s => s.id.toLowerCase().includes(query));
-  renderScooters(filtered);
+function toggleSheet(){ $('sheet').classList.toggle('min'); placeFab(); }
+function placeFab(){ $('locBtn').style.bottom = ($('sheet').classList.contains('min') ? 78 : $('sheet').offsetHeight) + 14 + 'px'; }
+new ResizeObserver(placeFab).observe($('sheet'));
+ 
+/* ---------- ХЕЛПЕРЫ ---------- */
+let tt; function toast(t){ const e=$('toast'); e.textContent=t; e.classList.add('show'); clearTimeout(tt); tt=setTimeout(()=>e.classList.remove('show'),2600); }
+const openM = id => $(id).classList.add('active'), closeM = id => $(id).classList.remove('active');
+async function post(path, body){
+  const r = await fetch(API+path, {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(body)});
+  let j = {}; try { j = await r.json(); } catch(e){} return j;
 }
-
-setInterval(loadScooters, 5000);
-loadScooters();
-
-// --- Логика профиля и поездок (осталась прежней) ---
-function openProfile() { document.getElementById('profileModal').classList.add('active'); if(user) { document.getElementById('authForm').style.display = 'none'; document.getElementById('loggedIn').style.display = 'block'; document.getElementById('userBalance').innerText = user.balance + ' ₽'; } }
-function closeProfile() { document.getElementById('profileModal').classList.remove('active'); }
-
-async function login() {
-  const username = document.getElementById('usernameInput').value;
-  const password = document.getElementById('passwordInput').value;
-  const r = await fetch(API + '/api/login', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ username, password }) });
-  const res = await r.json();
-  if(res.error) return alert(res.error);
-  user = res.user; localStorage.setItem('skyy_user', JSON.stringify(user)); openProfile();
+function saveUser(){ localStorage.setItem('skyy_user', JSON.stringify(user)); }
+ 
+/* ---------- ПРОФИЛЬ ---------- */
+function openProfile(){
+  $('authForm').style.display = user ? 'none' : 'block';
+  $('loggedIn').style.display = user ? 'block' : 'none';
+  if (user) $('userBalance').textContent = user.balance + ' ₽';
+  openM('profileModal');
 }
-async function register() {
-  const username = document.getElementById('usernameInput').value;
-  const password = document.getElementById('passwordInput').value;
-  const r = await fetch(API + '/api/register', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ username, password }) });
-  const res = await r.json();
-  if(res.error) return alert(res.error);
-  user = res.user; localStorage.setItem('skyy_user', JSON.stringify(user)); openProfile();
-}
-function logout() { user = null; localStorage.removeItem('skyy_user'); closeProfile(); }
-
-function selectScooter(s) { if(!user) { alert('Войдите!'); openProfile(); return; } currentScooter = s; document.getElementById('tariffModal').classList.add('active'); }
-function selectTariff(name, el) { selectedTariff = name; document.querySelectorAll('.tariff-row').forEach(r => r.classList.remove('selected')); el.classList.add('selected'); }
-
-async function confirmTariff() {
-  document.getElementById('tariffModal').classList.remove('active');
+async function auth(kind){
+  const username = $('usernameInput').value.trim(), password = $('passwordInput').value;
+  if (!username || !password) return toast('Введите логин и пароль');
   try {
-    const check = await fetch(API + '/api/login', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ username: user.username, password: user.password }) });
-    const checkRes = await check.json();
-    if(checkRes.success) { user.balance = checkRes.user.balance; localStorage.setItem('skyy_user', JSON.stringify(user)); }
-  } catch(e) {}
-
-  if(user.balance < 30) { alert('Мало средств! Пополните баланс.'); return; }
-  
-  const r = await fetch(API + '/api/start-ride', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ username: user.username, scooterId: currentScooter.id, tariff: selectedTariff }) });
-  const res = await r.json();
-  if(res.error) { alert(res.error); return; }
-  
-  user.balance = res.balance; localStorage.setItem('skyy_user', JSON.stringify(user));
-  currentRide = res.ride; isPaused = false;
-  document.getElementById('rideModal').classList.add('active');
-  rideInterval = setInterval(() => {
-    const sec = Math.floor((Date.now() - currentRide.startTime) / 1000);
-    document.getElementById('rideTimer').innerText = `${String(Math.floor(sec/60)).padStart(2,'0')}:${String(sec%60).padStart(2,'0')}`;
-  }, 1000);
+    const res = await post('/api/'+kind, {username, password});
+    if (res.error) return toast(res.error);
+    user = res.user; saveUser(); openProfile(); checkActiveRide();
+  } catch(e){ toast('Сервер недоступен'); }
 }
-
-async function togglePause() {
-  const r = await fetch(API + '/api/toggle-pause', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ username: user.username, scooterId: currentScooter.id }) });
-  const res = await r.json();
-  isPaused = res.isPaused;
-  if(isPaused) { document.getElementById('rideStatus').innerText = 'Пауза'; document.getElementById('pauseBtn').innerHTML = `<svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg> Продолжить`; document.getElementById('rideTimer').style.color = '#f59e0b'; }
-  else { document.getElementById('rideStatus').innerText = 'В пути'; document.getElementById('pauseBtn').innerHTML = `<svg viewBox="0 0 24 24"><path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/></svg> Пауза`; document.getElementById('rideTimer').style.color = '#fff'; }
+function logout(){ user = null; localStorage.removeItem('skyy_user'); closeM('profileModal'); }
+async function refreshUser(){
+  if (!user) return;
+  try { const res = await post('/api/login', {username:user.username, password:user.password}); if (res.user) { user = res.user; saveUser(); } } catch(e){}
 }
-function toggleLight() { alert('Фонарь включен!'); }
-
-async function endRide() {
-  clearInterval(rideInterval);
-  const r = await fetch(API + '/api/end-ride', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ username: user.username, scooterId: currentScooter.id }) });
-  const res = await r.json();
-  user.balance = res.balance; localStorage.setItem('skyy_user', JSON.stringify(user));
-  document.getElementById('rideModal').classList.remove('active');
-  alert(`Списано: ${res.extraCost} ₽\nБаланс: ${user.balance} ₽`);
-  loadScooters();
+ 
+/* ---------- ПОЕЗДКА ---------- */
+function selectScooter(s){
+  if (ride) return toast('Поездка уже идёт');
+  if (!user) { toast('Сначала войдите в аккаунт'); return openProfile(); }
+  currentScooter = s; openM('tariffModal');
 }
-
-function topUp() { document.getElementById('topupModal').classList.add('active'); }
-async function confirmTopup() {
-  const amount = document.getElementById('topupAmount').value;
-  if(!amount || amount < 30) return alert('Сумма от 30 рублей');
-  await fetch(API + '/api/request-topup', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ username: user.username, amount }) });
-  document.getElementById('topupModal').classList.remove('active');
-  alert('Заявка отправлена!');
+function selTariff(n, el){ selectedTariff = n; document.querySelectorAll('.tariff').forEach(r => r.classList.remove('sel')); el.classList.add('sel'); }
+ 
+async function confirmTariff(){
+  closeM('tariffModal'); await refreshUser();
+  const need = {minute:30,'30min':150,'60min':250}[selectedTariff];
+  if (user.balance < need) { toast(`Нужно минимум ${need} ₽. Пополните баланс`); return openProfile(); }
+  const res = await post('/api/start-ride', {username:user.username, scooterId:currentScooter.id, tariff:selectedTariff});
+  if (res.error) return toast(res.error);
+  user.balance = res.balance; saveUser(); startRideUI(res.ride, currentScooter.id);
 }
-function openSupport() { document.getElementById('profileModal').classList.remove('active'); document.getElementById('supportModal').classList.add('active'); }
-async function sendSupport() {
-  const msg = document.getElementById('supportMsg').value;
-  if(!msg) return alert('Введите сообщение');
-  await fetch(API + '/api/support', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ username: user.username, message: msg }) });
-  document.getElementById('supportMsg').value = ''; alert('Отправлено!');
+function startRideUI(r, id){
+  ride = r; currentScooter = currentScooter || {id}; currentScooter.id = id;
+  openM('rideModal'); paintPause(); clearInterval(timerId);
+  const tick = () => {
+    const now = Date.now(), paused = ride.paused ? now - ride.pausedAt : 0;
+    const sec = Math.max(0, Math.floor((now - ride.startTime - (ride.pausedMs||0) - paused) / 1000));
+    $('rideTimer').textContent = String(Math.floor(sec/60)).padStart(2,'0') + ':' + String(sec%60).padStart(2,'0');
+  };
+  tick(); timerId = setInterval(tick, 1000);
 }
+function paintPause(){
+  $('rideStatus').textContent = ride.paused ? 'Пауза' : 'В пути';
+  $('rideStatus').style.color = ride.paused ? '#f59e0b' : 'var(--green)';
+  $('pauseBtn').innerHTML = ride.paused ? PLAY : PAUSE;
+}
+async function togglePause(){
+  const res = await post('/api/toggle-pause', {username:user.username, scooterId:currentScooter.id});
+  if (res.error) return toast(res.error);
+  ride.paused = res.isPaused; ride.pausedAt = res.pausedAt; ride.pausedMs = res.pausedMs; paintPause();
+}
+async function endRide(){
+  const res = await post('/api/end-ride', {username:user.username, scooterId:currentScooter.id});
+  if (res.error) return toast(res.error);
+  clearInterval(timerId); ride = null; user.balance = res.balance; saveUser();
+  closeM('rideModal'); toast(`Поездка завершена. Доплата: ${res.extraCost} ₽, баланс: ${user.balance} ₽`); loadScooters();
+}
+async function checkActiveRide(){
+  if (!user) return;
+  try { const r = await (await fetch(API+'/api/my-ride/'+encodeURIComponent(user.username))).json();
+    if (r.ride) startRideUI(r.ride, r.scooterId); } catch(e){}
+}
+ 
+/* ---------- ПОПОЛНЕНИЕ / ПОДДЕРЖКА ---------- */
+async function confirmTopup(){
+  const amount = +$('topupAmount').value;
+  if (!amount || amount < 30) return toast('Сумма от 30 ₽');
+  await post('/api/request-topup', {username:user.username, amount});
+  closeM('topupModal'); closeM('profileModal'); $('topupAmount').value=''; toast('Заявка отправлена. Баланс обновится после проверки');
+}
+async function sendSupport(){
+  const msg = $('supportMsg').value.trim(); if (!msg) return toast('Введите сообщение');
+  await post('/api/support', {username:user.username, message:msg});
+  $('supportMsg').value=''; closeM('supportModal'); toast('Отправлено');
+}
+ 
+setInterval(loadScooters, 5000); loadScooters(); checkActiveRide(); placeFab();
 </script>
 </body>
 </html>
