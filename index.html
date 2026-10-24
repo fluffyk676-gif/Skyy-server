@@ -14,7 +14,7 @@
 html,body{margin:0;height:100%;overflow:hidden;background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;transition:background .3s,color .3s}
 #app{position:relative;height:100dvh;max-width:480px;margin:0 auto;overflow:hidden}
 #map{position:absolute;inset:0;z-index:1;background:var(--bg)}
-#map.dark .leaflet-tile-pane{filter:invert(1) hue-rotate(180deg) brightness(.92) contrast(.95) saturate(.8)}
+/* Убрана инверсия для Яндекса */
 .leaflet-control-attribution{font-size:9px!important;opacity:.6}
 .topbar{position:absolute;top:0;left:0;right:0;z-index:500;padding:calc(12px + env(safe-area-inset-top)) 12px 0;display:flex;gap:8px;align-items:center}
 .logo{height:44px;padding:0 14px;border-radius:14px;background:var(--accent);color:#fff;font-weight:800;font-size:20px;display:grid;place-items:center;box-shadow:var(--shadow);letter-spacing:.3px}
@@ -192,11 +192,17 @@ function toggleTheme(){ theme = theme==='dark' ? 'light' : 'dark'; localStorage.
 const map = L.map('map', {zoomControl:false, maxZoom:19}).setView([55.75,37.61], 15);
 map.attributionControl.setPrefix('');
 let tiles;
+
+// === ИЗМЕНЕНА ТОЛЬКО ЭТА ФУНКЦИЯ (КАРТА ЯНДЕКСА) ===
 function setTiles(){
   if (tiles) map.removeLayer(tiles);
-  tiles = L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {maxZoom:19, attribution:'© OpenStreetMap'}).addTo(map);
-  $('map').classList.toggle('dark', theme==='dark');
+  tiles = L.tileLayer('https://core-renderer-tiles.maps.yandex.net/tiles?l=map&v=21.06.20&x={x}&y={y}&z={z}&scale=1&lang=ru_RU', {
+    maxZoom: 19,
+    attribution: '© Яндекс'
+  }).addTo(map);
 }
+// ====================================================
+
 const parkLayer = L.layerGroup().addTo(map);
 const layer = L.layerGroup().addTo(map);
 applyTheme();
@@ -354,7 +360,6 @@ async function togglePause(){
   ride.paused = res.isPaused; ride.pausedAt = res.pausedAt; ride.pausedMs = res.pausedMs; paintRide();
 }
 
-// --- ПРОЗВОН ---
 async function ringScooter() {
   if (!currentScooter) return;
   await fetch(API + '/api/scooter/' + currentScooter.id + '/command', { method: 'POST', body: 'CALL' });
@@ -420,7 +425,6 @@ async function sendFinish(){
   } catch(e){ $('sendPhotoBtn').disabled = false; toast('Не удалось отправить. Проверьте связь'); }
 }
  
-// --- ПОДДЕРЖКА ---
 function openSupport() {
   closeM('profileModal');
   openM('supportModal');
