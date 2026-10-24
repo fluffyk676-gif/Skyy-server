@@ -1,7 +1,6 @@
 const express = require('express');
 const cors = require('cors');
 const path = require('path');
-const TelegramBot = require('node-telegram-bot-api');
 
 const app = express();
 app.use(cors());
@@ -11,118 +10,95 @@ app.use(express.urlencoded({ extended: true }));
 const scooters = {};
 const commandQueue = {};
 const users = {};
-const pendingTopups = {};
+const pendingTopups = {}; // Заявки на пополнение
 
-// === ТВОИ НАСТРОЙКИ ===
-// Вставь сюда свой САМЫЙ ПОСЛЕДНИЙ токен (если менял)
-const BOT_TOKEN = "8481132005:AAHKX6vg5-WzziJ9zLg1HJ5XfixiumKtHSE"; 
-const ADMIN_ID = 5832179468; 
-const SERVER_URL = "https://skyy-server.onrender.com";
-
-// === ЗАПУСК БОТА ЧЕРЕЗ WEBHOOK ===
-let bot;
-try {
-    bot = new TelegramBot(BOT_TOKEN);
-    
-    // Устанавливаем Webhook (Telegram будет сам присылать сообщения на сервер)
-    bot.setWebHook(`${SERVER_URL}/bot${BOT_TOKEN}`);
-    console.log("Бот успешно запущен (Webhook)!");
-} catch (e) {
-    console.log("КРИТИЧЕСКАЯ ОШИБКА БОТА:", e.message);
-}
-
-// Прием сообщений от Telegram
-app.post(`/bot${BOT_TOKEN}`, (req, res) => {
-    if (bot) {
-        bot.processUpdate(req.body);
-    }
-    res.sendStatus(200);
-});
-
-// Обработка кнопок от админа (тебя)
-if (bot) {
-    bot.on('callback_query', async (query) => {
-      const data = query.data;
-      const chatId = query.message.chat.id;
-      
-      if (chatId.toString() !== ADMIN_ID.toString()) return;
-
-      if (data.startsWith('confirm_')) {
-        const [_, phone, amount, topupId] = data.split('_');
-        if (!users[phone]) users[phone] = { phone, balance: 0 };
-        users[phone].balance += parseInt(amount);
-        delete pendingTopups[topupId];
-        
-        bot.sendMessage(chatId, `✅ Баланс для ${phone} пополнен на ${amount} ₽.`);
-        bot.editMessageText(`Пополнение ${phone} на ${amount} ₽: ПОДТВЕРЖДЕНО.`, { chat_id: chatId, message_id: query.message.message_id });
-      }
-      
-      if (data.startsWith('reject_')) {
-        const [_, phone, amount, topupId] = data.split('_');
-        delete pendingTopups[topupId];
-        bot.sendMessage(chatId, `❌ Пополнение для ${phone} отклонено.`);
-        bot.editMessageText(`Пополнение ${phone} на ${amount} ₽: ОТКЛОНЕНО.`, { chat_id: chatId, message_id: query.message.message_id });
-      }
-    });
-}
-
-// === API СЕРВЕРА ===
-
-// Прием координат
+// --- API СЕРВЕРА ---
 app.post('/api/scooter/location', (req, res) => {
   const { id, lat, lon } = req.body;
   if (id && lat && lon) scooters[id] = { id, lat: parseFloat(lat), lng: parseFloat(lon), lastSeen: Date.now() };
   res.send('OK');
 });
 
-// Список самокатов
 app.get('/api/scooters', (req, res) => res.json(Object.values(scooters)));
 
-// Вход в аккаунт
 app.post('/api/login', (req, res) => {
   const phone = req.body.phone;
   if (!users[phone]) users[phone] = { phone, balance: 0 };
   res.json(users[phone]);
 });
 
-// Запрос на пополнение (отправляет уведомление тебе)
+// Создать заявку на пополнение
 app.post('/api/request-topup', (req, res) => {
   const { phone, amount } = req.body;
-  const topupId = Date.now().toString();
-  pendingTopups[topupId] = { phone, amount };
-  
-  if (bot) {
-      const opts = {
-        reply_markup: {
-          inline_keyboard: [
-            [{ text: "✅ Подтвердить", callback_data: `confirm_${phone}_${amount}_${topupId}` }],
-            [{ text: "❌ Отклонить", callback_data: `reject_${phone}_${amount}_${topupId}` }]
-          ]
-        }
-      };
-      bot.sendMessage(ADMIN_ID, `💰 Запрос на пополнение!\nНомер: ${phone}\nСумма: ${amount} ₽`, opts);
-  }
-  
+  const id = Date.now().toString();
+  pendingTopups[id] = { id, phone, amount, status: 'pending' };
   res.json({ success: true });
 });
 
-// Старт поездки
-app.post('/api/start-ride', (req, res) => {
-  const { phone, scooterId } = req.body;
-  const user = users[phone];
-  if (!user || user.balance < 30) return res.status(400).json({ error: 'Недостаточно средств (нужно 30₽)' });
-  user.balance -= 30;
-  commandQueue[scooterId] = 'START';
-  res.json({ success: true, balance: user.balance });
+// --- АДМИН-ПАНЕЛЬ ---
+app.get('/admin', (req, res) => {
+  let html = `<html><head><meta charset="utf-8"><title>Skyy Admin</title>
+  <style>body{font-family:sans-serif;padding:20px;background:#121212;color:#fff;} 
+  .item{background:#1c1c1e;padding:15px;margin-bottom:10px;border-radius:10px;display:flex;justify-content:space-between;align-items:center;}
+  .btn{background:#22c55e;color:#fff;border:none;padding:10px 20px;border-radius:10px;cursor:pointer;font-weight:bold;}
+  .btn-red{background:#ef4444;}</style></head><body>
+  <h1>Заявки на пополнение</h1><div id="list">Загрузка...</div>
+  <script>
+    async function load() {
+      const r = await fetch('/api/admin/topups');
+      const data = await r.json();
+      if(data.length === 0) { document.getElementById('list').innerText = 'Нет активных заявок'; return; }
+      document.getElementById('list').innerHTML = data.map(item => \`
+        <div class="item">
+          <div>
+            <b>\${item.phone}</b><br>
+            <span style="color:#22c55e;font-size:20px;">\${item.amount} ₽</span>
+          </div>
+          <div>
+            <button class="btn" onclick="confirm('\${item.id}', '\${item.phone}', \${item.amount})">Подтвердить</button>
+            <button class="btn btn-red" onclick="reject('\${item.id}')">Отклонить</button>
+          </div>
+        </div>
+      \`).join('');
+    }
+    
+    async function confirm(id, phone, amount) {
+      await fetch('/api/admin/confirm-topup', {
+        method: 'POST', headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({ id, phone, amount })
+      });
+      load();
+    }
+    
+    async function reject(id) {
+      await fetch('/api/admin/reject-topup', {
+        method: 'POST', headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({ id })
+      });
+      load();
+    }
+    
+    load();
+    setInterval(load, 5000);
+  </script></body></html>`;
+  res.send(html);
 });
 
-// Конец поездки
-app.post('/api/end-ride', (req, res) => {
-  const { phone, minutes } = req.body;
-  const user = users[phone];
-  const cost = minutes * 7;
-  user.balance -= cost;
-  res.json({ balance: user.balance, cost });
+// API для админки
+app.get('/api/admin/topups', (req, res) => {
+  res.json(Object.values(pendingTopups));
+});
+
+app.post('/api/admin/confirm-topup', (req, res) => {
+  const { id, phone, amount } = req.body;
+  if (users[phone]) users[phone].balance += amount;
+  delete pendingTopups[id];
+  res.send('OK');
+});
+
+app.post('/api/admin/reject-topup', (req, res) => {
+  delete pendingTopups[req.body.id];
+  res.send('OK');
 });
 
 // --- ТРЕКЕР ---
