@@ -14,20 +14,30 @@ const users = {};
 const pendingTopups = {};
 
 // === ТВОИ НАСТРОЙКИ ===
-const BOT_TOKEN = "8481132005:AAHKX6vg5-WzziJ9zLg1HJ5XfixiumKtHSE"; // Новый токен
+// Вставь сюда свой САМЫЙ ПОСЛЕДНИЙ токен (если менял)
+const BOT_TOKEN = "8481132005:AAHKX6vg5-WzziJ9zLg1HJ5XfixiumKtHSE"; 
 const ADMIN_ID = 5832179468; 
+const SERVER_URL = "https://skyy-server.onrender.com";
 
-// Запуск бота с защитой от падения
+// === ЗАПУСК БОТА ЧЕРЕЗ WEBHOOK ===
 let bot;
 try {
-    bot = new TelegramBot(BOT_TOKEN, { polling: true });
-    console.log("Бот успешно запущен!");
-    bot.on('polling_error', (error) => {
-        console.log("ОШИБКА БОТА (polling):", error.message);
-    });
+    bot = new TelegramBot(BOT_TOKEN);
+    
+    // Устанавливаем Webhook (Telegram будет сам присылать сообщения на сервер)
+    bot.setWebHook(`${SERVER_URL}/bot${BOT_TOKEN}`);
+    console.log("Бот успешно запущен (Webhook)!");
 } catch (e) {
-    console.log("КРИТИЧЕСКАЯ ОШИБКА ПРИ ЗАПУСКЕ БОТА:", e.message);
+    console.log("КРИТИЧЕСКАЯ ОШИБКА БОТА:", e.message);
 }
+
+// Прием сообщений от Telegram
+app.post(`/bot${BOT_TOKEN}`, (req, res) => {
+    if (bot) {
+        bot.processUpdate(req.body);
+    }
+    res.sendStatus(200);
+});
 
 // Обработка кнопок от админа (тебя)
 if (bot) {
@@ -35,8 +45,8 @@ if (bot) {
       const data = query.data;
       const chatId = query.message.chat.id;
       
-      if (chatId.toString() !== ADMIN_ID.toString()) return; // Только ты можешь нажимать
-    
+      if (chatId.toString() !== ADMIN_ID.toString()) return;
+
       if (data.startsWith('confirm_')) {
         const [_, phone, amount, topupId] = data.split('_');
         if (!users[phone]) users[phone] = { phone, balance: 0 };
@@ -56,7 +66,7 @@ if (bot) {
     });
 }
 
-// --- API СЕРВЕРА ---
+// === API СЕРВЕРА ===
 
 // Прием координат
 app.post('/api/scooter/location', (req, res) => {
@@ -75,7 +85,7 @@ app.post('/api/login', (req, res) => {
   res.json(users[phone]);
 });
 
-// Запрос на пополнение
+// Запрос на пополнение (отправляет уведомление тебе)
 app.post('/api/request-topup', (req, res) => {
   const { phone, amount } = req.body;
   const topupId = Date.now().toString();
