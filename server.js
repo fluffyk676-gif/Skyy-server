@@ -10,7 +10,7 @@ app.use(express.urlencoded({ extended: true }));
 const scooters = {};
 const users = {};
 const pendingTopups = {};
-const supportTickets = []; // База сообщений в поддержку
+const supportTickets = []; // База сообщений
 
 // 1. Прием координат
 app.post('/api/scooter/location', (req, res) => {
@@ -44,20 +44,31 @@ app.post('/api/update-profile', (req, res) => {
   const { username, newPassword, newEmail } = req.body;
   const user = users[username];
   if (!user) return res.status(400).json({ error: 'Нет юзера' });
-  
   if (newPassword) user.password = newPassword;
   if (newEmail) user.email = newEmail;
   res.json({ success: true, user });
 });
 
-// 6. ПОДДЕРЖКА
+// 6. ПОДДЕРЖКА (Пользователь пишет)
 app.post('/api/support', (req, res) => {
   const { username, message } = req.body;
-  supportTickets.push({ id: Date.now().toString(), username, message, time: new Date().toLocaleString() });
+  supportTickets.push({ 
+    id: Date.now().toString(), 
+    username, 
+    message, 
+    reply: null, // Ответ админа
+    time: new Date().toLocaleString() 
+  });
   res.json({ success: true });
 });
 
-// 7. Пополнение
+// 7. ПОДДЕРЖКА (Пользователь читает ответы)
+app.get('/api/support/:username', (req, res) => {
+  const userTickets = supportTickets.filter(t => t.username === req.params.username);
+  res.json(userTickets);
+});
+
+// 8. Пополнение
 app.post('/api/request-topup', (req, res) => {
   const { username, amount } = req.body;
   const id = Date.now().toString();
@@ -65,7 +76,7 @@ app.post('/api/request-topup', (req, res) => {
   res.json({ success: true });
 });
 
-// 8. Поездки
+// 9. Поездки
 app.post('/api/start-ride', (req, res) => {
   const { username, scooterId } = req.body;
   const user = users[username];
@@ -82,22 +93,24 @@ app.post('/api/end-ride', (req, res) => {
   res.json({ balance: user.balance, cost });
 });
 
-// 9. АДМИН-ПАНЕЛЬ (Заявки и Поддержка)
+// 10. АДМИН-ПАНЕЛЬ
 app.get('/admin', (req, res) => {
   let html = `<html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Skyy Admin</title>
   <style>body{font-family:sans-serif;padding:20px;background:#121212;color:#fff;} 
   h2{color:#0ea5e9;} .item{background:#1c1c1e;padding:15px;margin-bottom:10px;border-radius:10px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;}
-  .btn{background:#22c55e;color:#fff;border:none;padding:12px 20px;border-radius:10px;cursor:pointer;font-weight:bold;font-size:14px;}
-  .btn-red{background:#ef4444;} .ticket{background:#2d2d2d;padding:10px;border-radius:8px;margin-bottom:10px;}</style></head><body>
+  .btn{background:#22c55e;color:#fff;border:none;padding:10px 15px;border-radius:10px;cursor:pointer;font-weight:bold;font-size:14px;}
+  .btn-red{background:#ef4444;} 
+  .ticket{background:#2d2d2d;padding:15px;border-radius:10px;margin-bottom:15px; text-align:left;}
+  .reply-box{display:flex; gap:10px; margin-top:10px; width:100%;}
+  .reply-input{flex:1; padding:10px; border-radius:8px; border:none; background:#121212; color:#fff;}</style></head><body>
   
   <h2>💰 Заявки на пополнение</h2><div id="topups">Загрузка...</div>
   
   <hr style="margin:30px 0; border-color:#333;">
   
-  <h2>💬 Сообщения в поддержку</h2><div id="support">Загрузка...</div>
+  <h2>💬 Поддержка</h2><div id="support">Загрузка...</div>
 
   <script>
-    // Загрузка пополнений
     async function loadTopups() {
       const r = await fetch('/api/admin/topups');
       const data = await r.json();
@@ -113,7 +126,6 @@ app.get('/admin', (req, res) => {
       \`).join('');
     }
     
-    // Загрузка поддержки
     async function loadSupport() {
       const r = await fetch('/api/admin/support');
       const data = await r.json();
@@ -123,8 +135,25 @@ app.get('/admin', (req, res) => {
           <div style="font-size:12px; color:#888;">\${item.time}</div>
           <b>От: \${item.username}</b>
           <div style="margin-top:5px; font-size:16px;">\${item.message}</div>
+          \${item.reply ? \`<div style="margin-top:10px; color:#22c55e; border-left:3px solid #22c55e; padding-left:10px;">Ответ: \${item.reply}</div>\` : \`
+            <div class="reply-box">
+              <input type="text" id="reply_\${item.id}" class="reply-input" placeholder="Написать ответ...">
+              <button class="btn" onclick="sendReply('\${item.id}')">Ответить</button>
+            </div>
+          \`}
         </div>
       \`).join('');
+    }
+
+    async function sendReply(id) {
+      const input = document.getElementById('reply_' + id);
+      const text = input.value;
+      if(!text) return;
+      await fetch('/api/admin/reply', {
+        method: 'POST', headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({ id, reply: text })
+      });
+      loadSupport();
     }
 
     async function confirmTopup(id, username, amount) {
@@ -153,6 +182,14 @@ app.post('/api/admin/confirm-topup', (req, res) => {
 app.post('/api/admin/reject-topup', (req, res) => { delete pendingTopups[req.body.id]; res.send('OK'); });
 
 app.get('/api/admin/support', (req, res) => res.json(supportTickets));
+
+// НОВЫЙ МАРШРУТ: Ответ админа
+app.post('/api/admin/reply', (req, res) => {
+  const { id, reply } = req.body;
+  const ticket = supportTickets.find(t => t.id === id);
+  if (ticket) ticket.reply = reply;
+  res.send('OK');
+});
 
 // ТРЕКЕР
 app.get('/tracker.html', (req, res) => {
