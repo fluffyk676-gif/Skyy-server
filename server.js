@@ -1,19 +1,26 @@
 const express = require('express');
 const cors = require('cors');
 const path = require('path');
+const multer = require('multer'); // Для загрузки фото
+const fs = require('fs');
 
 const app = express();
 app.use(cors());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
+// Настройка загрузки фото (сохраняем в папку uploads)
+const upload = multer({ dest: 'uploads/' });
+if (!fs.existsSync('uploads')) fs.mkdirSync('uploads');
+
 const scooters = {};
 const users = {};
 const pendingTopups = {};
 const supportTickets = [];
-const rides = {}; // Активные поездки
+const rides = {};
+const parkings = []; // Тут будут фото парковок
 
-// 1. Прием координат
+// 1. Координаты
 app.post('/api/scooter/location', (req, res) => {
   const { id, lat, lon, battery } = req.body;
   if (id && lat && lon) {
@@ -32,7 +39,7 @@ app.get('/api/scooters', (req, res) => res.json(Object.values(scooters)));
 app.post('/api/register', (req, res) => {
   const { username, password } = req.body;
   if (users[username]) return res.status(400).json({ error: 'Логин занят' });
-  users[username] = { username, password, balance: 0, email: '' };
+  users[username] = { username, password, balance: 0, email: '', theme: 'dark' }; // Добавили тему
   res.json({ success: true, user: users[username] });
 });
 
@@ -44,11 +51,12 @@ app.post('/api/login', (req, res) => {
 });
 
 app.post('/api/update-profile', (req, res) => {
-  const { username, newPassword, newEmail } = req.body;
+  const { username, newPassword, newEmail, theme } = req.body;
   const user = users[username];
   if (!user) return res.status(400).json({ error: 'Нет юзера' });
   if (newPassword) user.password = newPassword;
   if (newEmail) user.email = newEmail;
+  if (theme) user.theme = theme;
   res.json({ success: true, user });
 });
 
@@ -66,7 +74,7 @@ app.post('/api/request-topup', (req, res) => {
   res.json({ success: true });
 });
 
-// 5. Поездки и тарифы
+// 5. Поездки
 app.post('/api/start-ride', (req, res) => {
   const { username, scooterId, tariff } = req.body;
   const user = users[username];
@@ -81,7 +89,6 @@ app.post('/api/start-ride', (req, res) => {
   
   user.balance -= cost;
   rides[scooterId] = { username, tariff, startTime: Date.now(), isPaused: false, pauseStart: null };
-  
   res.json({ success: true, balance: user.balance, ride: rides[scooterId] });
 });
 
@@ -89,7 +96,6 @@ app.post('/api/toggle-pause', (req, res) => {
   const { username, scooterId } = req.body;
   const ride = rides[scooterId];
   if (!ride || ride.username !== username) return res.status(400).json({ error: 'Нет поездки' });
-
   if (ride.isPaused) {
     const pauseMins = Math.ceil((Date.now() - ride.pauseStart) / 60000);
     users[username].balance -= pauseMins * 3;
@@ -101,26 +107,36 @@ app.post('/api/toggle-pause', (req, res) => {
   res.json({ success: true, isPaused: ride.isPaused });
 });
 
-app.post('/api/end-ride', (req, res) => {
+// 6. ЗАВЕРШЕНИЕ ПОЕЗДКИ С ФОТО (Парковка)
+app.post('/api/end-ride', upload.single('photo'), (req, res) => {
   const { username, scooterId } = req.body;
   const ride = rides[scooterId];
   if (!ride) return res.status(400).json({ error: 'Поездка не найдена' });
   
   const minutes = Math.ceil((Date.now() - ride.startTime) / 60000);
   let extraCost = 0;
-  
   if (ride.tariff === 'minute') extraCost = minutes * 7;
   else if (ride.tariff === 'unlimited') extraCost = minutes * 5;
-  
   if (ride.isPaused) extraCost += Math.ceil((Date.now() - ride.pauseStart) / 60000) * 3;
   
   users[username].balance -= extraCost;
-  delete rides[scooterId];
   
+  // Сохраняем фото парковки
+  if (req.file) {
+    parkings.push({ 
+      id: Date.now().toString(), 
+      username, 
+      scooterId, 
+      photo: '/uploads/' + req.file.filename,
+      time: new Date().toLocaleString()
+    });
+  }
+  
+  delete rides[scooterId];
   res.json({ success: true, balance: users[username].balance, extraCost });
 });
 
-// 6. АДМИН-ПАНЕЛЬ
+// 7. АДМИН-ПАНЕЛЬ
 app.get('/admin', (req, res) => {
   let html = `<html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Skyy Admin</title>
   <style>body{font-family:sans-serif;padding:20px;background:#121212;color:#fff;} 
@@ -130,12 +146,16 @@ app.get('/admin', (req, res) => {
   .ticket{background:#2d2d2d;padding:15px;border-radius:10px;margin-bottom:15px; text-align:left;}
   .reply-box{display:flex; gap:10px; margin-top:10px; width:100%;}
   .reply-input{flex:1; padding:10px; border-radius:8px; border:none; background:#121212; color:#fff; box-sizing:border-box;}
-  .refresh{background:#0ea5e9; margin-bottom:20px; width:100%;}</style></head><body>
+  .refresh{background:#0ea5e9; margin-bottom:20px; width:100%;}
+  .photo{max-width: 200px; border-radius: 10px; margin-top: 10px;}</style></head><body>
   
   <button class="btn refresh" onclick="loadAll()">🔄 Обновить данные</button>
+
   <h2>💰 Заявки на пополнение</h2><div id="topups">Загрузка...</div>
   <hr style="margin:30px 0; border-color:#333;">
   <h2>💬 Поддержка</h2><div id="support">Загрузка...</div>
+  <hr style="margin:30px 0; border-color:#333;">
+  <h2>📸 Фото парковок</h2><div id="parkings">Загрузка...</div>
 
   <script>
     async function loadTopups() {
@@ -172,7 +192,20 @@ app.get('/admin', (req, res) => {
       \`).join('');
     }
 
-    async function loadAll() { await loadTopups(); await loadSupport(); }
+    async function loadParkings() {
+      const r = await fetch('/api/admin/parkings');
+      const data = await r.json();
+      if(data.length === 0) { document.getElementById('parkings').innerText = 'Нет фото'; return; }
+      document.getElementById('parkings').innerHTML = data.reverse().map(item => \`
+        <div class="ticket">
+          <div style="font-size:12px; color:#888;">\${item.time}</div>
+          <b>Самокат: \${item.scooterId}</b> (Юзер: \${item.username})
+          <br><img src="\${item.photo}" class="photo">
+        </div>
+      \`).join('');
+    }
+
+    async function loadAll() { await loadTopups(); await loadSupport(); await loadParkings(); }
 
     async function sendReply(id) {
       const input = document.getElementById('reply_' + id);
@@ -208,6 +241,11 @@ app.post('/api/admin/reply', (req, res) => {
   if (ticket) ticket.reply = req.body.reply;
   res.send('OK');
 });
+
+app.get('/api/admin/parkings', (req, res) => res.json(parkings));
+
+// Раздаем папку с загруженными фото
+app.use('/uploads', express.static('uploads'));
 
 // ТРЕКЕР
 app.get('/tracker.html', (req, res) => {
