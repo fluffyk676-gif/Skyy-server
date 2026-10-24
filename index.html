@@ -35,10 +35,17 @@
   
   input, textarea{width:100%; padding:16px; background:var(--card-2); border:none; border-radius:12px; color:var(--text-theme); margin-bottom:12px; font-size:16px; box-sizing:border-box;}
   
-  .marker{background:var(--accent); width:36px; height:36px; border-radius:50% 50% 50% 0; transform:rotate(-45deg); display:grid; place-items:center; border:3px solid #fff;}
+  .marker{background:var(--accent); width:36px; height:36px; border-radius:50% 50% 50% 0; transform:rotate(-45deg); display:grid; place-items:center; border:3px solid #fff; cursor:pointer;}
   .marker span{transform:rotate(45deg); font-size:18px;}
+  .marker.busy { background: #888; opacity: 0.5; }
+
+  .tariff-row{display:flex; justify-content:space-between; align-items:center; padding:15px; background:var(--card-2); border-radius:12px; margin-bottom:10px; cursor:pointer; border:2px solid transparent;}
+  .tariff-row.selected{border-color:var(--accent);}
+  .ride-controls{display:flex; gap:10px; margin-top:10px;}
+  .ride-controls .btn{flex:1;}
   
   .user-dot { width: 18px; height: 18px; border-radius: 50%; background: #0ea5e9; border: 3px solid #fff; box-shadow: 0 0 0 5px rgba(14,165,233,0.3); }
+  .scooter-item { padding: 12px; border-bottom: 1px solid #333; display: flex; justify-content: space-between; align-items: center; cursor: pointer;}
 </style>
 </head>
 <body>
@@ -57,7 +64,49 @@
     <div style="font-size:12px; color:var(--muted); text-align:center;" id="serverStatus">Подключение...</div>
   </div>
 
-  <!-- МОДАЛКИ -->
+  <!-- МОДАЛКА ВЫБОРА ТАРИФА -->
+  <div class="modal" id="tariffModal">
+    <div class="modal-content">
+      <h2>Выберите тариф</h2>
+      <div class="tariff-row selected" onclick="selectTariff('minute', this)">
+        <div><b>Поминутно</b><br><small style="color:var(--muted)">30 ₽ старт + 7 ₽/мин</small></div>
+      </div>
+      <div class="tariff-row" onclick="selectTariff('30min', this)">
+        <div><b>На 30 минут</b><br><small style="color:var(--muted)">150 ₽ фикс</small></div>
+      </div>
+      <div class="tariff-row" onclick="selectTariff('60min', this)">
+        <div><b>На 1 час</b><br><small style="color:var(--muted)">250 ₽ фикс</small></div>
+      </div>
+      <button class="btn" onclick="confirmTariff()">Поехали!</button>
+      <button class="btn btn-sec" onclick="document.getElementById('tariffModal').classList.remove('active')">Отмена</button>
+    </div>
+  </div>
+
+  <!-- МОДАЛКА ПОЕЗДКИ -->
+  <div class="modal" id="rideModal">
+    <div class="modal-content">
+      <h2 style="color:var(--green);" id="rideStatus">В пути</h2>
+      <div style="font-size:56px; font-weight:800; margin:20px 0;" id="rideTimer">00:00</div>
+      <div class="ride-controls">
+        <button class="btn btn-sec" onclick="toggleLight()">💡 Фонарь</button>
+        <button class="btn btn-sec" onclick="togglePause()" id="pauseBtn">⏸ Пауза</button>
+      </div>
+      <button class="btn" style="background:#ef4444; margin-top:15px;" onclick="openEndRide()">Завершить</button>
+    </div>
+  </div>
+
+  <!-- МОДАЛКА ФОТО ПРИ ЗАВЕРШЕНИИ -->
+  <div class="modal" id="endRideModal">
+    <div class="modal-content">
+      <h2 style="color:var(--accent);">Завершение поездки</h2>
+      <p style="color:var(--muted); margin-bottom:15px;">Привяжите самокат к ограде и сфотографируйте его.</p>
+      <input type="file" id="parkingPhoto" accept="image/*" capture="environment" style="background:#fff; color:#000;">
+      <button class="btn" onclick="submitEndRide()">Завершить</button>
+      <button class="btn btn-sec" onclick="document.getElementById('endRideModal').classList.remove('active')">Отмена</button>
+    </div>
+  </div>
+
+  <!-- ПРОФИЛЬ -->
   <div class="modal" id="profileModal">
     <div class="modal-content">
       <h2>Личный кабинет</h2>
@@ -73,17 +122,32 @@
         <h1 style="font-size:42px; margin:10px 0; color:var(--green);" id="userBalance">0 ₽</h1>
         <p style="color:var(--muted); font-size:12px; margin-bottom:20px;">Баланс</p>
         <button class="btn" onclick="topUp()">Пополнить баланс</button>
+        <button class="btn btn-sec" onclick="openSettings()">⚙️ Настройки</button>
         <button class="btn btn-sec" onclick="logout()">Выйти</button>
         <button class="btn btn-sec" onclick="closeProfile()">Закрыть окно</button>
       </div>
     </div>
   </div>
 
+  <!-- НАСТРОЙКИ -->
+  <div class="modal" id="settingsModal">
+    <div class="modal-content">
+      <h2>Настройки</h2>
+      <label>Тема:</label>
+      <div style="display:flex; gap:10px; margin-bottom:15px;">
+        <button class="btn btn-sec" onclick="setTheme('dark')">Тёмная</button>
+        <button class="btn btn-sec" onclick="setTheme('light')">Светлая</button>
+      </div>
+      <button class="btn btn-sec" onclick="closeSettings()">Назад</button>
+    </div>
+  </div>
+
+  <!-- ПОПОЛНЕНИЕ -->
   <div class="modal" id="topupModal">
     <div class="modal-content">
       <h2>Пополнение</h2>
-      <p style="color:var(--muted); margin-bottom:20px; font-size:14px;">Переведите сумму на номер <b>+7 985 805-33-95</b> (Сбер) и введите её ниже.</p>
-      <input type="number" id="topupAmount" placeholder="Сумма (например, 100)">
+      <p style="color:var(--muted); margin-bottom:20px; font-size:14px;">Переведите на номер <b>+7 985 805-33-95</b> (Сбер).</p>
+      <input type="number" id="topupAmount" placeholder="Сумма">
       <button class="btn" onclick="confirmTopup()">Я перевел</button>
       <button class="btn btn-sec" onclick="document.getElementById('topupModal').classList.remove('active')">Отмена</button>
     </div>
@@ -93,12 +157,18 @@
 <script>
 const API = 'https://skyy-server.onrender.com';
 let user = JSON.parse(localStorage.getItem('skyy_user')) || null;
+let currentScooter = null;
+let selectedTariff = 'minute';
+let currentRide = null;
+let rideInterval = null;
+let isPaused = false;
 
-// Инициализация карты
+if(user && user.theme === 'light') document.body.classList.add('light-theme');
+
 const map = L.map('map', {zoomControl:false, maxZoom: 19}).setView([55.75, 37.61], 16);
 L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19 }).addTo(map);
 
-// Синяя точка
+// Синяя точка пользователя
 if (navigator.geolocation) {
   navigator.geolocation.watchPosition((pos) => {
     const latlng = [pos.coords.latitude, pos.coords.longitude];
@@ -121,9 +191,20 @@ async function loadScooters() {
     document.getElementById('serverStatus').innerText = `Найдено: ${data.length}`;
     
     map.eachLayer(layer => { if(layer instanceof L.Marker && layer !== window.userMarker) map.removeLayer(layer); });
+    document.getElementById('scooterList').innerHTML = '';
     
     data.forEach(s => {
-      L.marker([s.lat, s.lng], { icon: L.divIcon({html:'<div class="marker"><span>🛴</span></div>', iconSize:[36,36], iconAnchor:[18,18]}) }).addTo(map);
+      // Создаем маркер
+      L.marker([s.lat, s.lng], { icon: L.divIcon({html:'<div class="marker"><span>🛴</span></div>', iconSize:[36,36], iconAnchor:[18,18]}) })
+        .addTo(map)
+        .on('click', () => selectScooter(s));
+        
+      // Создаем элемент в списке
+      const div = document.createElement('div');
+      div.className = 'scooter-item';
+      div.innerHTML = `<div><b>${s.id}</b><br><small style="color:var(--muted)">Заряд: ${s.battery || 100}%</small></div><div style="color:var(--accent);">Свободен</div>`;
+      div.onclick = () => selectScooter(s);
+      document.getElementById('scooterList').appendChild(div);
     });
   } catch (e) {
     document.getElementById('serverStatus').innerText = 'Ошибка сети';
@@ -132,6 +213,7 @@ async function loadScooters() {
 setInterval(loadScooters, 5000);
 loadScooters();
 
+// --- ПРОФИЛЬ ---
 function openProfile() {
   document.getElementById('profileModal').classList.add('active');
   if(user) {
@@ -150,32 +232,119 @@ async function register() {
   const username = document.getElementById('usernameInput').value;
   const password = document.getElementById('passwordInput').value;
   if(!username || !password) return alert('Заполните поля');
-  
-  try {
-    const r = await fetch(API + '/api/register', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ username, password }) });
-    const res = await r.json();
-    if(res.error) return alert(res.error);
-    user = res.user;
-    localStorage.setItem('skyy_user', JSON.stringify(user));
-    openProfile();
-  } catch(e) { alert('Ошибка сервера. Попробуйте позже.'); }
+  const r = await fetch(API + '/api/register', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ username, password }) });
+  const res = await r.json();
+  if(res.error) return alert(res.error);
+  user = res.user;
+  localStorage.setItem('skyy_user', JSON.stringify(user));
+  openProfile();
 }
-
 async function login() {
   const username = document.getElementById('usernameInput').value;
   const password = document.getElementById('passwordInput').value;
-  try {
-    const r = await fetch(API + '/api/login', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ username, password }) });
-    const res = await r.json();
-    if(res.error) return alert(res.error);
-    user = res.user;
-    localStorage.setItem('skyy_user', JSON.stringify(user));
-    openProfile();
-  } catch(e) { alert('Ошибка сервера. Попробуйте позже.'); }
+  const r = await fetch(API + '/api/login', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ username, password }) });
+  const res = await r.json();
+  if(res.error) return alert(res.error);
+  user = res.user;
+  localStorage.setItem('skyy_user', JSON.stringify(user));
+  openProfile();
 }
-
 function logout() { user = null; localStorage.removeItem('skyy_user'); closeProfile(); }
 
+// --- НАСТРОЙКИ ---
+function openSettings() { document.getElementById('profileModal').classList.remove('active'); document.getElementById('settingsModal').classList.add('active'); }
+function closeSettings() { document.getElementById('settingsModal').classList.remove('active'); document.getElementById('profileModal').classList.add('active'); }
+function setTheme(theme) {
+  if(theme === 'light') document.body.classList.add('light-theme');
+  else document.body.classList.remove('light-theme');
+  if(user) { user.theme = theme; localStorage.setItem('skyy_user', JSON.stringify(user)); }
+}
+
+// --- ВЫБОР САМОКАТА ---
+function selectScooter(s) {
+  if(!user) { alert('Войдите в аккаунт!'); openProfile(); return; }
+  currentScooter = s;
+  document.getElementById('tariffModal').classList.add('active');
+}
+
+function selectTariff(name, el) {
+  selectedTariff = name;
+  document.querySelectorAll('.tariff-row').forEach(r => r.classList.remove('selected'));
+  el.classList.add('selected');
+}
+
+async function confirmTariff() {
+  document.getElementById('tariffModal').classList.remove('active');
+  if(user.balance < 30) { alert('Мало средств! Пополните баланс.'); topUp(); return; }
+  
+  const r = await fetch(API + '/api/start-ride', {
+    method: 'POST', headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({ username: user.username, scooterId: currentScooter.id, tariff: selectedTariff })
+  });
+  const res = await r.json();
+  if(res.error) { alert(res.error); return; }
+  
+  user.balance = res.balance;
+  localStorage.setItem('skyy_user', JSON.stringify(user));
+  currentRide = res.ride;
+  isPaused = false;
+  
+  document.getElementById('rideStatus').innerText = 'В пути';
+  document.getElementById('pauseBtn').innerText = '⏸ Пауза';
+  document.getElementById('rideModal').classList.add('active');
+  
+  rideInterval = setInterval(() => {
+    const sec = Math.floor((Date.now() - currentRide.startTime) / 1000);
+    document.getElementById('rideTimer').innerText = `${String(Math.floor(sec/60)).padStart(2,'0')}:${String(sec%60).padStart(2,'0')}`;
+  }, 1000);
+}
+
+async function togglePause() {
+  const r = await fetch(API + '/api/toggle-pause', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ username: user.username, scooterId: currentScooter.id }) });
+  const res = await r.json();
+  isPaused = res.isPaused;
+  
+  if(isPaused) {
+    document.getElementById('rideStatus').innerText = 'На паузе (3 ₽/мин)';
+    document.getElementById('pauseBtn').innerText = '▶️ Продолжить';
+    document.getElementById('rideTimer').style.color = '#f59e0b';
+  } else {
+    document.getElementById('rideStatus').innerText = 'В пути';
+    document.getElementById('pauseBtn').innerText = '⏸ Пауза';
+    document.getElementById('rideTimer').style.color = '#fff';
+  }
+}
+
+async function toggleLight() { alert('Фонарь включен (сигнал на самокат)!'); }
+
+// --- ЗАВЕРШЕНИЕ С ФОТО ---
+function openEndRide() {
+  document.getElementById('rideModal').classList.remove('active');
+  document.getElementById('endRideModal').classList.add('active');
+}
+
+async function submitEndRide() {
+  const photoInput = document.getElementById('parkingPhoto');
+  if (!photoInput.files[0]) return alert('Сделайте фото самоката у ограды!');
+  
+  const formData = new FormData();
+  formData.append('username', user.username);
+  formData.append('scooterId', currentScooter.id);
+  formData.append('photo', photoInput.files[0]);
+  
+  document.getElementById('endRideModal').classList.remove('active');
+  clearInterval(rideInterval);
+  
+  const r = await fetch(API + '/api/end-ride', { method: 'POST', body: formData });
+  const res = await r.json();
+  
+  user.balance = res.balance;
+  localStorage.setItem('skyy_user', JSON.stringify(user));
+  alert(`Поездка завершена.\nСписано: ${res.extraCost} ₽\nБаланс: ${user.balance} ₽`);
+  loadScooters();
+}
+
+// --- ПОПОЛНЕНИЕ ---
 function topUp() { document.getElementById('topupModal').classList.add('active'); }
 async function confirmTopup() {
   const amount = document.getElementById('topupAmount').value;
