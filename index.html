@@ -41,26 +41,29 @@
     <div style="font-size:12px; color:var(--muted); text-align:center;" id="serverStatus">Подключение...</div>
   </div>
 
-  <!-- ПРОФИЛЬ -->
+  <!-- ПРОФИЛЬ И АВТОРИЗАЦИЯ -->
   <div class="modal" id="profileModal">
     <div class="modal-content">
       <h2>Личный кабинет</h2>
-      <div id="loginForm">
-        <p style="color:var(--muted); margin-bottom:20px;">Войдите, чтобы арендовать самокат</p>
-        <input type="tel" id="phoneInput" placeholder="+7 999 000-00-00">
-        <button class="btn" onclick="requestCode()">Получить код</button>
+      
+      <!-- Экран входа/регистрации -->
+      <div id="authForm">
+        <input type="text" id="usernameInput" placeholder="Логин">
+        <input type="password" id="passwordInput" placeholder="Пароль">
+        <button class="btn" onclick="login()">Войти</button>
+        <button class="btn btn-sec" onclick="register()">Зарегистрироваться</button>
+        <button class="btn btn-sec" onclick="closeProfile()">Закрыть</button>
       </div>
-      <div id="codeForm" style="display:none;">
-        <p style="color:var(--muted); margin-bottom:20px;">Введите код из СМС (для теста: 1234)</p>
-        <input type="number" id="codeInput" placeholder="Код">
-        <button class="btn" onclick="verifyCode()">Подтвердить</button>
-      </div>
+
+      <!-- Экран, если вошел -->
       <div id="loggedIn" style="display:none;">
-        <p>Ваш номер: <b id="userPhone"></b></p>
+        <p>Логин: <b id="userName"></b></p>
         <h1 style="font-size:42px; margin:10px 0; color:var(--green);" id="userBalance">0 ₽</h1>
         <p style="color:var(--muted); font-size:12px; margin-bottom:20px;">Баланс</p>
+        
         <button class="btn" onclick="topUp()">Пополнить баланс</button>
-        <button class="btn btn-sec" onclick="logout()">Выйти</button>
+        <button class="btn btn-sec" onclick="logout()">Выйти из аккаунта</button>
+        <button class="btn btn-sec" onclick="closeProfile()">Закрыть окно</button>
       </div>
     </div>
   </div>
@@ -88,76 +91,90 @@
 
 <script>
 const API = 'https://skyy-server.onrender.com';
-let user = JSON.parse(localStorage.getItem('skyy_user')) || null; // Загружаем из памяти
+let user = JSON.parse(localStorage.getItem('skyy_user')) || null;
 let currentScooter = null;
 let rideInterval = null;
 let rideStart = null;
-let tempPhone = null;
 
 const map = L.map('map', {zoomControl:false}).setView([55.75, 37.61], 15);
 L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
 
-// Обновление баланса с сервера
 async function updateBalance() {
   if(!user) return;
   try {
     const r = await fetch(API + '/api/login', {
       method: 'POST', headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify({ phone: user.phone })
+      body: JSON.stringify({ username: user.username, password: user.password })
     });
-    const freshUser = await r.json();
-    if (freshUser.balance !== user.balance) {
-      user = freshUser;
-      localStorage.setItem('skyy_user', JSON.stringify(user)); // Сохраняем
+    const res = await r.json();
+    if(res.success) {
+      user.balance = res.user.balance;
+      localStorage.setItem('skyy_user', JSON.stringify(user));
       if(document.getElementById('profileModal').classList.contains('active')) {
         document.getElementById('userBalance').innerText = user.balance + ' ₽';
       }
     }
   } catch(e) {}
 }
-setInterval(updateBalance, 3000); // Каждые 3 секунды проверяем баланс
+setInterval(updateBalance, 3000);
 
 function openProfile() {
   document.getElementById('profileModal').classList.add('active');
   if(user) {
-    document.getElementById('loginForm').style.display = 'none';
-    document.getElementById('codeForm').style.display = 'none';
+    document.getElementById('authForm').style.display = 'none';
     document.getElementById('loggedIn').style.display = 'block';
-    document.getElementById('userPhone').innerText = user.phone;
+    document.getElementById('userName').innerText = user.username;
     document.getElementById('userBalance').innerText = user.balance + ' ₽';
   } else {
-    document.getElementById('loginForm').style.display = 'block';
-    document.getElementById('codeForm').style.display = 'none';
+    document.getElementById('authForm').style.display = 'block';
     document.getElementById('loggedIn').style.display = 'none';
   }
 }
 
-function requestCode() {
-  const phone = document.getElementById('phoneInput').value;
-  if(!phone) return alert('Введите номер');
-  tempPhone = phone;
-  document.getElementById('loginForm').style.display = 'none';
-  document.getElementById('codeForm').style.display = 'block';
-  alert('Для теста введите код: 1234');
+function closeProfile() {
+  document.getElementById('profileModal').classList.remove('active');
 }
 
-async function verifyCode() {
-  const code = document.getElementById('codeInput').value;
-  if(code !== '1234') return alert('Неверный код');
+async function register() {
+  const username = document.getElementById('usernameInput').value;
+  const password = document.getElementById('passwordInput').value;
+  if(!username || !password) return alert('Заполните все поля');
+  
+  const r = await fetch(API + '/api/register', {
+    method: 'POST', headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({ username, password })
+  });
+  const res = await r.json();
+  
+  if(res.error) return alert(res.error);
+  
+  user = { username, password, balance: 0 };
+  localStorage.setItem('skyy_user', JSON.stringify(user));
+  openProfile();
+}
+
+async function login() {
+  const username = document.getElementById('usernameInput').value;
+  const password = document.getElementById('passwordInput').value;
+  if(!username || !password) return alert('Заполните все поля');
   
   const r = await fetch(API + '/api/login', {
     method: 'POST', headers: {'Content-Type': 'application/json'},
-    body: JSON.stringify({ phone: tempPhone })
+    body: JSON.stringify({ username, password })
   });
-  user = await r.json();
-  localStorage.setItem('skyy_user', JSON.stringify(user)); // Сохраняем сессию
+  const res = await r.json();
+  
+  if(res.error) return alert(res.error);
+  
+  user = { username, password, balance: res.user.balance };
+  localStorage.setItem('skyy_user', JSON.stringify(user));
   openProfile();
 }
 
 function logout() {
   user = null;
   localStorage.removeItem('skyy_user');
-  document.getElementById('profileModal').classList.remove('active');
+  closeProfile();
 }
 
 function topUp() { document.getElementById('topupModal').classList.add('active'); }
@@ -168,7 +185,7 @@ async function confirmTopup() {
   
   await fetch(API + '/api/request-topup', {
     method: 'POST', headers: {'Content-Type': 'application/json'},
-    body: JSON.stringify({ phone: user.phone, amount: amount })
+    body: JSON.stringify({ username: user.username, amount: amount })
   });
   
   document.getElementById('topupModal').classList.remove('active');
@@ -218,7 +235,7 @@ function selectScooter(s) {
 async function startRide() {
   const r = await fetch(API + '/api/start-ride', {
     method: 'POST', headers: {'Content-Type': 'application/json'},
-    body: JSON.stringify({ phone: user.phone, scooterId: currentScooter.id })
+    body: JSON.stringify({ username: user.username, scooterId: currentScooter.id })
   });
   const res = await r.json();
   
@@ -241,7 +258,7 @@ async function endRide() {
   
   const r = await fetch(API + '/api/end-ride', {
     method: 'POST', headers: {'Content-Type': 'application/json'},
-    body: JSON.stringify({ phone: user.phone, minutes })
+    body: JSON.stringify({ username: user.username, minutes })
   });
   const res = await r.json();
   
