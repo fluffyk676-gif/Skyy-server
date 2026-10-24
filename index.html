@@ -109,6 +109,7 @@ input:focus,textarea:focus{border-color:var(--accent)}
       <button class="btn sec" onclick="toast('Фонарь включён')"><svg viewBox="0 0 24 24"><path d="M9 21c0 .6.4 1 1 1h4c.6 0 1-.4 1-1v-1H9v1zm3-19a7 7 0 0 0-4 12.7V17c0 .6.4 1 1 1h6c.6 0 1-.4 1-1v-2.3A7 7 0 0 0 12 2z"/></svg>Фонарь</button>
       <button class="btn sec" id="pauseBtn" onclick="togglePause()"></button>
     </div>
+    <button class="btn sec" onclick="ringScooter()" style="margin-top:10px;">🔔 Прозвон</button>
     <button class="btn red" id="endBtn" onclick="openFinish()">Завершить поездку</button>
   </div></div>
  
@@ -136,7 +137,7 @@ input:focus,textarea:focus{border-color:var(--accent)}
       <div class="sub" style="margin:0">Баланс</div>
       <div style="font-size:46px;font-weight:800;color:var(--green);margin-bottom:10px" id="userBalance">0 ₽</div>
       <button class="btn" onclick="openM('topupModal')">Пополнить</button>
-      <button class="btn sec" onclick="closeM('profileModal');openM('supportModal')">Поддержка</button>
+      <button class="btn sec" onclick="openSupport()">Поддержка</button>
       <button class="btn sec" onclick="logout()">Выйти</button>
     </div>
     <div class="set" style="margin-top:14px"><span>Тёмная тема</span><button class="sw" onclick="toggleTheme()" aria-label="Переключить тему"></button></div>
@@ -145,8 +146,17 @@ input:focus,textarea:focus{border-color:var(--accent)}
  
   <div class="modal" id="supportModal"><div class="mc">
     <h2>Поддержка</h2>
-    <textarea id="supportMsg" rows="3" placeholder="Опишите проблему"></textarea>
-    <button class="btn" onclick="sendSupport()">Отправить</button>
+    <div style="display:flex; gap:10px; margin-bottom:15px;">
+      <button class="btn sec" onclick="showSupport('write')">Написать</button>
+      <button class="btn sec" onclick="showSupport('history')">Мои обращения</button>
+    </div>
+    <div id="supportWrite">
+      <textarea id="supportMsg" rows="3" placeholder="Опишите проблему"></textarea>
+      <button class="btn" onclick="sendSupport()">Отправить</button>
+    </div>
+    <div id="supportHistory" style="display:none; text-align:left; max-height:50vh; overflow-y:auto;">
+      <div id="myTicketsList">Загрузка...</div>
+    </div>
     <button class="btn sec" onclick="closeM('supportModal')">Назад</button>
   </div></div>
  
@@ -171,7 +181,6 @@ let theme = localStorage.getItem('skyy_theme') || 'dark';
 let allScooters = [], parkings = [], currentScooter = null, selectedTariff = 'minute';
 let ride = null, timerId = null, pollId = null, userPos = null, photoData = null, lastReview = '';
  
-/* ---------- ТЕМА ---------- */
 function applyTheme(){
   document.documentElement.dataset.theme = theme;
   document.querySelector('meta[name=theme-color]').content = theme==='dark' ? '#101114' : '#f3f4f6';
@@ -180,7 +189,6 @@ function applyTheme(){
 }
 function toggleTheme(){ theme = theme==='dark' ? 'light' : 'dark'; localStorage.setItem('skyy_theme', theme); applyTheme(); }
  
-/* ---------- КАРТА ---------- */
 const map = L.map('map', {zoomControl:false, maxZoom:19}).setView([55.75,37.61], 15);
 map.attributionControl.setPrefix('');
 let tiles;
@@ -216,7 +224,6 @@ if (navigator.geolocation) {
   navigator.geolocation.watchPosition(p => { const first = !userPos; setPos(p); if (first) map.setView(userPos, 16); }, () => {}, {enableHighAccuracy:true, maximumAge:5000});
 }
  
-/* ---------- ПАРКОВКИ ---------- */
 async function loadParkings(){
   try {
     parkings = await (await fetch(API+'/api/parkings')).json();
@@ -237,7 +244,6 @@ function paintParkHint(){
   else { el.className='note bad'; el.textContent='Вы вне парковки. Ближайшая — «' + best.p.name + '», до неё ' + fmtD(Math.max(0, best.d - best.p.r)) + '. Отвезите самокат туда.'; }
 }
  
-/* ---------- САМОКАТЫ ---------- */
 function dist(a,b){ const R=6371000,r=Math.PI/180,dLa=(b[0]-a[0])*r,dLo=(b[1]-a[1])*r;
   const x=Math.sin(dLa/2)**2+Math.cos(a[0]*r)*Math.cos(b[0]*r)*Math.sin(dLo/2)**2; return 2*R*Math.asin(Math.sqrt(x)); }
 function fmtD(m){ return m<1000 ? Math.round(m/10)*10+' м' : (m/1000).toFixed(1)+' км'; }
@@ -270,7 +276,6 @@ function toggleSheet(){ $('sheet').classList.toggle('min'); placeFab(); }
 function placeFab(){ $('locBtn').style.bottom = ($('sheet').classList.contains('min') ? 78 : $('sheet').offsetHeight) + 14 + 'px'; }
 new ResizeObserver(placeFab).observe($('sheet'));
  
-/* ---------- ХЕЛПЕРЫ ---------- */
 let tt; function toast(t){ const e=$('toast'); e.textContent=t; e.classList.add('show'); clearTimeout(tt); tt=setTimeout(()=>e.classList.remove('show'),3200); }
 const openM = id => $(id).classList.add('active'), closeM = id => $(id).classList.remove('active');
 async function post(path, body){
@@ -279,7 +284,6 @@ async function post(path, body){
 }
 function saveUser(){ localStorage.setItem('skyy_user', JSON.stringify(user)); }
  
-/* ---------- ПРОФИЛЬ ---------- */
 function openProfile(){
   $('authForm').style.display = user ? 'none' : 'block';
   $('loggedIn').style.display = user ? 'block' : 'none';
@@ -298,151 +302,4 @@ async function auth(kind){
 function logout(){ user = null; localStorage.removeItem('skyy_user'); closeM('profileModal'); }
 async function refreshUser(){
   if (!user) return;
-  try { const res = await post('/api/login', {username:user.username, password:user.password}); if (res.user) { user = res.user; saveUser(); } } catch(e){}
-}
- 
-/* ---------- ПОЕЗДКА ---------- */
-function selectScooter(s){
-  if (ride) return toast('Поездка уже идёт');
-  if (!user) { toast('Сначала войдите в аккаунт'); return openProfile(); }
-  currentScooter = s; openM('tariffModal');
-}
-function selTariff(n, el){ selectedTariff = n; document.querySelectorAll('.tariff').forEach(r => r.classList.remove('sel')); el.classList.add('sel'); }
- 
-async function confirmTariff(){
-  closeM('tariffModal'); await refreshUser();
-  const need = {minute:30,'30min':150,'60min':250}[selectedTariff];
-  if (user.balance < need) { toast(`Нужно минимум ${need} ₽. Пополните баланс`); return openProfile(); }
-  const res = await post('/api/start-ride', {username:user.username, scooterId:currentScooter.id, tariff:selectedTariff});
-  if (res.error) return toast(res.error);
-  user.balance = res.balance; saveUser(); startRideUI(res.ride, currentScooter.id);
-}
-function startRideUI(r, id){
-  ride = r; currentScooter = currentScooter || {id}; currentScooter.id = id; lastReview = (r.review && r.review.status) || '';
-  openM('rideModal'); paintRide(); clearInterval(timerId); clearInterval(pollId);
-  const tick = () => {
-    const now = Date.now(), paused = ride.paused ? now - ride.pausedAt : 0;
-    const sec = Math.max(0, Math.floor((now - ride.startTime - (ride.pausedMs||0) - paused) / 1000));
-    $('rideTimer').textContent = String(Math.floor(sec/60)).padStart(2,'0') + ':' + String(sec%60).padStart(2,'0');
-  };
-  tick(); timerId = setInterval(tick, 1000); pollId = setInterval(pollRide, 4000);
-}
-function paintRide(){
-  const rv = ride.review || {}, pending = rv.status === 'pending';
-  $('rideStatus').textContent = pending ? 'Проверка фото' : ride.paused ? 'Пауза' : 'В пути';
-  $('rideStatus').style.color = pending ? '#f59e0b' : ride.paused ? '#f59e0b' : 'var(--green)';
-  $('pauseBtn').innerHTML = ride.paused ? PLAY : PAUSE; $('pauseBtn').disabled = pending;
-  const note = $('rideNote'); note.style.display = 'none';
-  if (pending) { note.style.display = 'block'; note.className = 'note warn'; note.textContent = 'Администратор проверяет фото. Пока поездка не завершена, время тарифицируется.'; }
-  if (rv.status === 'rejected') { note.style.display = 'block'; note.className = 'note bad'; note.textContent = 'Поездку нельзя завершить: ' + (rv.comment || 'переставьте самокат на парковку и пристегните к ограде') + '. Время продолжает тарифицироваться.'; }
-  $('endBtn').disabled = pending;
-  $('endBtn').textContent = pending ? 'Ждём проверку…' : rv.status === 'rejected' ? 'Отправить новое фото' : 'Завершить поездку';
-}
-async function togglePause(){
-  const res = await post('/api/toggle-pause', {username:user.username, scooterId:currentScooter.id});
-  if (res.error) return toast(res.error);
-  ride.paused = res.isPaused; ride.pausedAt = res.pausedAt; ride.pausedMs = res.pausedMs; paintRide();
-}
-async function pollRide(){
-  if (!user || !ride) return;
-  try {
-    const r = await (await fetch(API+'/api/my-ride/'+encodeURIComponent(user.username))).json();
-    if (r.ride) {
-      Object.assign(ride, r.ride); paintRide();
-      const st = (ride.review && ride.review.status) || '';
-      if (st === 'rejected' && lastReview !== 'rejected') toast('Нужно переставить самокат');
-      lastReview = st;
-    } else if (r.finished) finishedUI(r.finished);
-  } catch(e){}
-}
-function finishedUI(f){
-  clearInterval(timerId); clearInterval(pollId); ride = null;
-  user.balance = f.balance; saveUser(); closeM('rideModal');
-  toast(`Поездка завершена. Доплата: ${f.extraCost} ₽, баланс: ${f.balance} ₽`); loadScooters();
-}
-async function checkActiveRide(){
-  if (!user) return;
-  try {
-    const r = await (await fetch(API+'/api/my-ride/'+encodeURIComponent(user.username))).json();
-    if (r.ride) startRideUI(r.ride, r.scooterId); else if (r.finished) { user.balance = r.finished.balance; saveUser(); toast(`Поездка завершена. Доплата: ${r.finished.extraCost} ₽`); }
-  } catch(e){}
-}
- 
-/* ---------- ЗАВЕРШЕНИЕ С ФОТО ---------- */
-function openFinish(){
-  photoData = null; $('photoPrev').hidden = true; $('photoText').hidden = false; $('photoInput').value = ''; $('sendPhotoBtn').disabled = true;
-  paintParkHint(); openM('finishModal');
-}
-function compress(file){
-  return new Promise((res, rej) => {
-    const img = new Image(), u = URL.createObjectURL(file);
-    img.onload = () => {
-      const k = Math.min(1, 1000 / Math.max(img.width, img.height)), c = document.createElement('canvas');
-      c.width = Math.round(img.width * k); c.height = Math.round(img.height * k);
-      c.getContext('2d').drawImage(img, 0, 0, c.width, c.height); URL.revokeObjectURL(u);
-      res(c.toDataURL('image/jpeg', .72));
-    };
-    img.onerror = rej; img.src = u;
-  });
-}
-async function onPhoto(inp){
-  const f = inp.files[0]; if (!f) return;
-  try {
-    photoData = await compress(f);
-    $('photoPrev').src = photoData; $('photoPrev').hidden = false; $('photoText').hidden = true; $('sendPhotoBtn').disabled = false;
-  } catch(e){ toast('Не удалось обработать фото'); }
-}
-async function sendFinish(){
-  if (!photoData) return toast('Сначала сделайте фото');
-  $('sendPhotoBtn').disabled = true;
-  try {
-    const res = await post('/api/request-finish', {username:user.username, scooterId:currentScooter.id, photo:photoData});
-    if (res.error) { $('sendPhotoBtn').disabled = false; return toast(res.error); }
-    ride.review = {status:'pending'}; lastReview = 'pending'; paintRide(); closeM('finishModal');
-    toast('Фото отправлено на проверку');
-  } catch(e){ $('sendPhotoBtn').disabled = false; toast('Не удалось отправить. Проверьте связь'); }
-}
- 
-/* ---------- ПОПОЛНЕНИЕ / ПОДДЕРЖКА ---------- */
-async function confirmTopup(){
-  const amount = +$('topupAmount').value;
-  if (!amount || amount < 30) return toast('Сумма от 30 ₽');
-  await post('/api/request-topup', {username:user.username, amount});
-  closeM('topupModal'); closeM('profileModal'); $('topupAmount').value=''; toast('Заявка отправлена. Баланс обновится после проверки');
-}
-async function sendSupport(){
-  const msg = $('supportMsg').value.trim(); if (!msg) return toast('Введите сообщение');
-  await post('/api/support', {username:user.username, message:msg});
-  $('supportMsg').value=''; closeM('supportModal'); toast('Отправлено');
-}
- 
-/* ---------- СВАЙПЫ ---------- */
-const LOCKED = ['rideModal'];
-document.querySelectorAll('.modal').forEach(m => {
-  const mc = m.querySelector('.mc'), id = m.id;
-  const g = document.createElement('div'); g.className = 'grab'; g.innerHTML = '<i></i>'; mc.prepend(g);
-  if (LOCKED.includes(id)) return;
-  m.addEventListener('click', e => { if (e.target === m) closeM(id); });
-  let y0 = 0, dy = 0, t0 = 0, on = false;
-  mc.addEventListener('touchstart', e => { if (mc.scrollTop > 0) return; y0 = e.touches[0].clientY; t0 = Date.now(); dy = 0; on = true; mc.style.transition = 'none'; }, {passive:true});
-  mc.addEventListener('touchmove', e => { if (!on) return; dy = Math.max(0, e.touches[0].clientY - y0); mc.style.transform = `translateY(${dy}px)`; }, {passive:true});
-  mc.addEventListener('touchend', () => {
-    if (!on) return; on = false; mc.style.transition = ''; mc.style.transform = '';
-    if (dy > 110 || (dy > 40 && dy / (Date.now() - t0) > 0.6)) closeM(id);
-  });
-});
-(() => {
-  const sh = $('sheet'); let y0 = 0, dy = 0, base = 0, on = false;
-  const minOff = () => sh.offsetHeight - 78;
-  [sh.querySelector('.grab'), sh.querySelector('h2')].forEach(h => {
-    h.addEventListener('touchstart', e => { y0 = e.touches[0].clientY; dy = 0; on = true; base = sh.classList.contains('min') ? minOff() : 0; sh.style.transition = 'none'; }, {passive:true});
-    h.addEventListener('touchmove', e => { if (!on) return; dy = e.touches[0].clientY - y0; sh.style.transform = `translateY(${Math.min(minOff(), Math.max(0, base + dy))}px)`; }, {passive:true});
-    h.addEventListener('touchend', () => { if (!on) return; on = false; sh.style.transition = ''; sh.style.transform = ''; sh.classList.toggle('min', base + dy > minOff() / 3); placeFab(); });
-  });
-})();
- 
-setInterval(loadScooters, 5000); setInterval(loadParkings, 60000);
-loadScooters(); loadParkings(); checkActiveRide(); placeFab();
-</script>
-</body>
-</html>
+  try { const res = await post('/api/login', {username:user.username, password:user.password}); if (
