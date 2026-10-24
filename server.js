@@ -8,7 +8,7 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
 const scooters = {};
-const users = {};
+const users = {}; // Здесь хранятся юзеры: { username: { password, balance } }
 const pendingTopups = {};
 
 // 1. Прием координат от самокатов
@@ -21,41 +21,54 @@ app.post('/api/scooter/location', (req, res) => {
 // 2. Список самокатов
 app.get('/api/scooters', (req, res) => res.json(Object.values(scooters)));
 
-// 3. Авторизация (создание аккаунта)
-app.post('/api/login', (req, res) => {
-  const phone = req.body.phone;
-  if (!users[phone]) users[phone] = { phone, balance: 0 };
-  res.json(users[phone]);
+// 3. РЕГИСТРАЦИЯ
+app.post('/api/register', (req, res) => {
+  const { username, password } = req.body;
+  if (users[username]) return res.status(400).json({ error: 'Этот логин уже занят' });
+  
+  users[username] = { username, password, balance: 0 };
+  res.json({ success: true, user: users[username] });
 });
 
-// 4. Создание заявки на пополнение
+// 4. ВХОД
+app.post('/api/login', (req, res) => {
+  const { username, password } = req.body;
+  const user = users[username];
+  
+  if (!user) return res.status(400).json({ error: 'Пользователь не найден' });
+  if (user.password !== password) return res.status(400).json({ error: 'Неверный пароль' });
+  
+  res.json({ success: true, user });
+});
+
+// 5. Создание заявки на пополнение
 app.post('/api/request-topup', (req, res) => {
-  const { phone, amount } = req.body;
+  const { username, amount } = req.body;
   const id = Date.now().toString();
-  pendingTopups[id] = { id, phone, amount };
+  pendingTopups[id] = { id, username, amount };
   res.json({ success: true });
 });
 
-// 5. Старт поездки (списываем 30 руб)
+// 6. Старт поездки
 app.post('/api/start-ride', (req, res) => {
-  const { phone, scooterId } = req.body;
-  const user = users[phone];
+  const { username, scooterId } = req.body;
+  const user = users[username];
   if (!user || user.balance < 30) return res.status(400).json({ error: 'Мало средств (нужно 30₽)' });
   
   user.balance -= 30;
   res.json({ success: true, balance: user.balance });
 });
 
-// 6. Конец поездки (списываем 7 руб/мин)
+// 7. Конец поездки
 app.post('/api/end-ride', (req, res) => {
-  const { phone, minutes } = req.body;
-  const user = users[phone];
+  const { username, minutes } = req.body;
+  const user = users[username];
   const cost = minutes * 7;
   user.balance -= cost;
   res.json({ balance: user.balance, cost });
 });
 
-// 7. АДМИН-ПАНЕЛЬ (доступна по адресу /admin)
+// 8. АДМИН-ПАНЕЛЬ
 app.get('/admin', (req, res) => {
   let html = `<html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Skyy Admin</title>
   <style>body{font-family:sans-serif;padding:20px;background:#121212;color:#fff;} 
@@ -71,20 +84,20 @@ app.get('/admin', (req, res) => {
       document.getElementById('list').innerHTML = data.map(item => \`
         <div class="item">
           <div>
-            <b>\${item.phone}</b><br>
+            <b>Логин: \${item.username}</b><br>
             <span style="color:#22c55e;font-size:20px;">\${item.amount} ₽</span>
           </div>
           <div style="display:flex; gap:10px;">
-            <button class="btn" onclick="confirm('\${item.id}', '\${item.phone}', \${item.amount})">Подтвердить</button>
+            <button class="btn" onclick="confirm('\${item.id}', '\${item.username}', \${item.amount})">Подтвердить</button>
             <button class="btn btn-red" onclick="reject('\${item.id}')">Отклонить</button>
           </div>
         </div>
       \`).join('');
     }
-    async function confirm(id, phone, amount) {
+    async function confirm(id, username, amount) {
       await fetch('/api/admin/confirm-topup', {
         method: 'POST', headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify({ id, phone, amount })
+        body: JSON.stringify({ id, username, amount })
       });
       load();
     }
@@ -104,8 +117,8 @@ app.get('/admin', (req, res) => {
 app.get('/api/admin/topups', (req, res) => res.json(Object.values(pendingTopups)));
 
 app.post('/api/admin/confirm-topup', (req, res) => {
-  const { id, phone, amount } = req.body;
-  if (users[phone]) users[phone].balance += parseInt(amount);
+  const { id, username, amount } = req.body;
+  if (users[username]) users[username].balance += parseInt(amount);
   delete pendingTopups[id];
   res.send('OK');
 });
@@ -115,7 +128,7 @@ app.post('/api/admin/reject-topup', (req, res) => {
   res.send('OK');
 });
 
-// 8. ТРЕКЕР (для iPad/телефона)
+// --- ТРЕКЕР ---
 app.get('/tracker.html', (req, res) => {
   res.send(`
     <!DOCTYPE html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"></head>
