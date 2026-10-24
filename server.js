@@ -10,7 +10,7 @@ app.use(express.urlencoded({ extended: true }));
 const scooters = {};
 const users = {};
 const pendingTopups = {};
-const supportTickets = []; // База сообщений
+const supportTickets = [];
 
 // 1. Прием координат
 app.post('/api/scooter/location', (req, res) => {
@@ -56,7 +56,7 @@ app.post('/api/support', (req, res) => {
     id: Date.now().toString(), 
     username, 
     message, 
-    reply: null, // Ответ админа
+    reply: null,
     time: new Date().toLocaleString() 
   });
   res.json({ success: true });
@@ -93,7 +93,7 @@ app.post('/api/end-ride', (req, res) => {
   res.json({ balance: user.balance, cost });
 });
 
-// 10. АДМИН-ПАНЕЛЬ
+// 10. АДМИН-ПАНЕЛЬ (ИСПРАВЛЕНА - БЕЗ АВТООБНОВЛЕНИЯ)
 app.get('/admin', (req, res) => {
   let html = `<html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Skyy Admin</title>
   <style>body{font-family:sans-serif;padding:20px;background:#121212;color:#fff;} 
@@ -102,8 +102,11 @@ app.get('/admin', (req, res) => {
   .btn-red{background:#ef4444;} 
   .ticket{background:#2d2d2d;padding:15px;border-radius:10px;margin-bottom:15px; text-align:left;}
   .reply-box{display:flex; gap:10px; margin-top:10px; width:100%;}
-  .reply-input{flex:1; padding:10px; border-radius:8px; border:none; background:#121212; color:#fff;}</style></head><body>
+  .reply-input{flex:1; padding:10px; border-radius:8px; border:none; background:#121212; color:#fff; box-sizing:border-box;}
+  .refresh{background:#0ea5e9; margin-bottom:20px; width:100%;}</style></head><body>
   
+  <button class="btn refresh" onclick="loadAll()">🔄 Обновить данные</button>
+
   <h2>💰 Заявки на пополнение</h2><div id="topups">Загрузка...</div>
   
   <hr style="margin:30px 0; border-color:#333;">
@@ -145,6 +148,11 @@ app.get('/admin', (req, res) => {
       \`).join('');
     }
 
+    async function loadAll() {
+      await loadTopups();
+      await loadSupport();
+    }
+
     async function sendReply(id) {
       const input = document.getElementById('reply_' + id);
       const text = input.value;
@@ -153,7 +161,7 @@ app.get('/admin', (req, res) => {
         method: 'POST', headers: {'Content-Type': 'application/json'},
         body: JSON.stringify({ id, reply: text })
       });
-      loadSupport();
+      loadAll(); // Обновляем список только после отправки
     }
 
     async function confirmTopup(id, username, amount) {
@@ -165,9 +173,7 @@ app.get('/admin', (req, res) => {
       loadTopups();
     }
     
-    loadTopups(); loadSupport();
-    setInterval(loadTopups, 3000);
-    setInterval(loadSupport, 3000);
+    loadAll(); // Запускаем только при загрузке страницы
   </script></body></html>`;
   res.send(html);
 });
@@ -183,7 +189,6 @@ app.post('/api/admin/reject-topup', (req, res) => { delete pendingTopups[req.bod
 
 app.get('/api/admin/support', (req, res) => res.json(supportTickets));
 
-// НОВЫЙ МАРШРУТ: Ответ админа
 app.post('/api/admin/reply', (req, res) => {
   const { id, reply } = req.body;
   const ticket = supportTickets.find(t => t.id === id);
