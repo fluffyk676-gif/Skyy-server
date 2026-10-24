@@ -14,10 +14,10 @@ const users = {};
 const pendingTopups = {};
 
 // === ТВОИ НАСТРОЙКИ ===
-const BOT_TOKEN = "8481132005:AAE4BVZTHpoW1_LmciAoWKyDddzCAvLivCM";
+const BOT_TOKEN = "8481132005:AAHKX6vg5-WzziJ9zLg1HJ5XfixiumKtHSE"; // Новый токен
 const ADMIN_ID = 5832179468; 
 
-// Запуск бота
+// Запуск бота с защитой от падения
 let bot;
 try {
     bot = new TelegramBot(BOT_TOKEN, { polling: true });
@@ -30,29 +30,31 @@ try {
 }
 
 // Обработка кнопок от админа (тебя)
-bot.on('callback_query', async (query) => {
-  const data = query.data;
-  const chatId = query.message.chat.id;
-  
-  if (chatId.toString() !== ADMIN_ID.toString()) return; // Только ты можешь нажимать
-
-  if (data.startsWith('confirm_')) {
-    const [_, phone, amount, topupId] = data.split('_');
-    if (!users[phone]) users[phone] = { phone, balance: 0 };
-    users[phone].balance += parseInt(amount);
-    delete pendingTopups[topupId];
+if (bot) {
+    bot.on('callback_query', async (query) => {
+      const data = query.data;
+      const chatId = query.message.chat.id;
+      
+      if (chatId.toString() !== ADMIN_ID.toString()) return; // Только ты можешь нажимать
     
-    bot.sendMessage(chatId, `✅ Баланс для ${phone} пополнен на ${amount} ₽.`);
-    bot.editMessageText(`Пополнение ${phone} на ${amount} ₽: ПОДТВЕРЖДЕНО.`, { chat_id: chatId, message_id: query.message.message_id });
-  }
-  
-  if (data.startsWith('reject_')) {
-    const [_, phone, amount, topupId] = data.split('_');
-    delete pendingTopups[topupId];
-    bot.sendMessage(chatId, `❌ Пополнение для ${phone} отклонено.`);
-    bot.editMessageText(`Пополнение ${phone} на ${amount} ₽: ОТКЛОНЕНО.`, { chat_id: chatId, message_id: query.message.message_id });
-  }
-});
+      if (data.startsWith('confirm_')) {
+        const [_, phone, amount, topupId] = data.split('_');
+        if (!users[phone]) users[phone] = { phone, balance: 0 };
+        users[phone].balance += parseInt(amount);
+        delete pendingTopups[topupId];
+        
+        bot.sendMessage(chatId, `✅ Баланс для ${phone} пополнен на ${amount} ₽.`);
+        bot.editMessageText(`Пополнение ${phone} на ${amount} ₽: ПОДТВЕРЖДЕНО.`, { chat_id: chatId, message_id: query.message.message_id });
+      }
+      
+      if (data.startsWith('reject_')) {
+        const [_, phone, amount, topupId] = data.split('_');
+        delete pendingTopups[topupId];
+        bot.sendMessage(chatId, `❌ Пополнение для ${phone} отклонено.`);
+        bot.editMessageText(`Пополнение ${phone} на ${amount} ₽: ОТКЛОНЕНО.`, { chat_id: chatId, message_id: query.message.message_id });
+      }
+    });
+}
 
 // --- API СЕРВЕРА ---
 
@@ -73,22 +75,24 @@ app.post('/api/login', (req, res) => {
   res.json(users[phone]);
 });
 
-// Запрос на пополнение (клиент нажал "Я перевел")
+// Запрос на пополнение
 app.post('/api/request-topup', (req, res) => {
   const { phone, amount } = req.body;
   const topupId = Date.now().toString();
   pendingTopups[topupId] = { phone, amount };
   
-  const opts = {
-    reply_markup: {
-      inline_keyboard: [
-        [{ text: "✅ Подтвердить", callback_data: `confirm_${phone}_${amount}_${topupId}` }],
-        [{ text: "❌ Отклонить", callback_data: `reject_${phone}_${amount}_${topupId}` }]
-      ]
-    }
-  };
+  if (bot) {
+      const opts = {
+        reply_markup: {
+          inline_keyboard: [
+            [{ text: "✅ Подтвердить", callback_data: `confirm_${phone}_${amount}_${topupId}` }],
+            [{ text: "❌ Отклонить", callback_data: `reject_${phone}_${amount}_${topupId}` }]
+          ]
+        }
+      };
+      bot.sendMessage(ADMIN_ID, `💰 Запрос на пополнение!\nНомер: ${phone}\nСумма: ${amount} ₽`, opts);
+  }
   
-  bot.sendMessage(ADMIN_ID, `💰 Запрос на пополнение!\nНомер: ${phone}\nСумма: ${amount} ₽\n\nПроверьте Сбер и подтвердите.`, opts);
   res.json({ success: true });
 });
 
@@ -111,7 +115,7 @@ app.post('/api/end-ride', (req, res) => {
   res.json({ balance: user.balance, cost });
 });
 
-// --- ТРЕКЕР ДЛЯ УСТРОЙСТВ ---
+// --- ТРЕКЕР ---
 app.get('/tracker.html', (req, res) => {
   res.send(`
     <!DOCTYPE html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"></head>
