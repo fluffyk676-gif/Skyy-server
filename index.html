@@ -17,12 +17,12 @@
   .btn-icon{width:44px; height:44px; background:var(--card-2); border-radius:14px; display:grid; place-items:center; font-size:20px; color:#fff; border:none; cursor:pointer;}
   .search-bar{flex:1; background:var(--card-2); border-radius:14px; padding:12px; font-size:14px; color:#fff;}
   .sheet{position:absolute; left:0; right:0; bottom:0; z-index:500; background:var(--card); border-radius:24px 24px 0 0; padding:20px; max-height:85vh; display:flex; flex-direction:column;}
-  .btn{width:100%; padding:18px; border:none; border-radius:16px; font-size:16px; font-weight:700; cursor:pointer; text-align:center; background:var(--accent); color:#fff; margin-top:10px;}
+  .btn{width:100%; padding:16px; border:none; border-radius:16px; font-size:16px; font-weight:700; cursor:pointer; text-align:center; background:var(--accent); color:#fff; margin-top:10px;}
   .btn-sec{background:var(--card-2); color:#fff;}
   .modal{display:none; position:absolute; inset:0; background:rgba(0,0,0,0.8); z-index:1000; align-items:center; justify-content:center; padding:20px;}
   .modal.active{display:flex}
-  .modal-content{background:var(--card); width:100%; border-radius:24px; padding:24px; text-align:center;}
-  input{width:100%; padding:16px; background:var(--card-2); border:none; border-radius:12px; color:#fff; margin-bottom:12px; font-size:16px;}
+  .modal-content{background:var(--card); width:100%; border-radius:24px; padding:24px; text-align:center; max-height:90vh; overflow-y:auto;}
+  input, textarea{width:100%; padding:16px; background:var(--card-2); border:none; border-radius:12px; color:#fff; margin-bottom:12px; font-size:16px; box-sizing:border-box;}
   .marker{background:var(--accent); width:36px; height:36px; border-radius:50% 50% 50% 0; transform:rotate(-45deg); display:grid; place-items:center; border:3px solid #fff;}
   .marker span{transform:rotate(45deg); font-size:18px;}
 </style>
@@ -35,18 +35,17 @@
     <div class="search-bar">🔍 Куда поедем?</div>
     <button class="btn-icon" onclick="openProfile()">👤</button>
   </div>
-  <div class="sheet" id="sheet">
+  <div class="sheet">
     <h2 style="margin:0 0 10px;">Самокаты рядом</h2>
     <div id="scooterList" style="overflow-y:auto; max-height:40vh; margin-bottom:10px;"></div>
     <div style="font-size:12px; color:var(--muted); text-align:center;" id="serverStatus">Подключение...</div>
   </div>
 
-  <!-- ПРОФИЛЬ И АВТОРИЗАЦИЯ -->
+  <!-- ПРОФИЛЬ -->
   <div class="modal" id="profileModal">
     <div class="modal-content">
       <h2>Личный кабинет</h2>
       
-      <!-- Экран входа/регистрации -->
       <div id="authForm">
         <input type="text" id="usernameInput" placeholder="Логин">
         <input type="password" id="passwordInput" placeholder="Пароль">
@@ -55,16 +54,41 @@
         <button class="btn btn-sec" onclick="closeProfile()">Закрыть</button>
       </div>
 
-      <!-- Экран, если вошел -->
       <div id="loggedIn" style="display:none;">
         <p>Логин: <b id="userName"></b></p>
         <h1 style="font-size:42px; margin:10px 0; color:var(--green);" id="userBalance">0 ₽</h1>
         <p style="color:var(--muted); font-size:12px; margin-bottom:20px;">Баланс</p>
         
         <button class="btn" onclick="topUp()">Пополнить баланс</button>
+        <button class="btn btn-sec" onclick="openSettings()">⚙️ Настройки</button>
+        <button class="btn btn-sec" onclick="openSupport()">💬 Поддержка</button>
         <button class="btn btn-sec" onclick="logout()">Выйти из аккаунта</button>
         <button class="btn btn-sec" onclick="closeProfile()">Закрыть окно</button>
       </div>
+    </div>
+  </div>
+
+  <!-- НАСТРОЙКИ -->
+  <div class="modal" id="settingsModal">
+    <div class="modal-content">
+      <h2>Настройки</h2>
+      <label style="color:var(--muted); font-size:12px; display:block; text-align:left; margin-bottom:5px;">Смена пароля</label>
+      <input type="password" id="newPassword" placeholder="Новый пароль">
+      <label style="color:var(--muted); font-size:12px; display:block; text-align:left; margin-bottom:5px;">Почта (для связи)</label>
+      <input type="email" id="newEmail" placeholder="mail@example.com">
+      <button class="btn" onclick="saveSettings()">Сохранить</button>
+      <button class="btn btn-sec" onclick="closeSettings()">Назад</button>
+    </div>
+  </div>
+
+  <!-- ПОДДЕРЖКА -->
+  <div class="modal" id="supportModal">
+    <div class="modal-content">
+      <h2>Поддержка</h2>
+      <p style="color:var(--muted); font-size:14px;">Опишите проблему, и мы ответим вам в ближайшее время.</p>
+      <textarea id="supportMsg" rows="4" placeholder="Ваше сообщение..."></textarea>
+      <button class="btn" onclick="sendSupport()">Отправить</button>
+      <button class="btn btn-sec" onclick="closeSupport()">Назад</button>
     </div>
   </div>
 
@@ -72,7 +96,7 @@
   <div class="modal" id="topupModal">
     <div class="modal-content">
       <h2>Пополнение</h2>
-      <p style="color:var(--muted); margin-bottom:20px; font-size:14px;">Переведите сумму на номер <b>+7 985 805-33-95</b> (Сбер), затем введите её ниже.</p>
+      <p style="color:var(--muted); margin-bottom:20px; font-size:14px;">Переведите сумму на номер <b>+7 985 805-33-95</b> (Сбер) и введите её ниже.</p>
       <input type="number" id="topupAmount" placeholder="Сумма (например, 100)">
       <button class="btn" onclick="confirmTopup()">Я перевел</button>
       <button class="btn btn-sec" onclick="document.getElementById('topupModal').classList.remove('active')">Отмена</button>
@@ -99,16 +123,14 @@ let rideStart = null;
 const map = L.map('map', {zoomControl:false}).setView([55.75, 37.61], 15);
 L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
 
+// --- ПРОФИЛЬ ---
 async function updateBalance() {
   if(!user) return;
   try {
-    const r = await fetch(API + '/api/login', {
-      method: 'POST', headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify({ username: user.username, password: user.password })
-    });
+    const r = await fetch(API + '/api/login', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ username: user.username, password: user.password }) });
     const res = await r.json();
     if(res.success) {
-      user.balance = res.user.balance;
+      user = res.user;
       localStorage.setItem('skyy_user', JSON.stringify(user));
       if(document.getElementById('profileModal').classList.contains('active')) {
         document.getElementById('userBalance').innerText = user.balance + ' ₽';
@@ -131,23 +153,15 @@ function openProfile() {
   }
 }
 
-function closeProfile() {
-  document.getElementById('profileModal').classList.remove('active');
-}
+function closeProfile() { document.getElementById('profileModal').classList.remove('active'); }
 
 async function register() {
   const username = document.getElementById('usernameInput').value;
   const password = document.getElementById('passwordInput').value;
-  if(!username || !password) return alert('Заполните все поля');
-  
-  const r = await fetch(API + '/api/register', {
-    method: 'POST', headers: {'Content-Type': 'application/json'},
-    body: JSON.stringify({ username, password })
-  });
+  if(!username || !password) return alert('Заполните поля');
+  const r = await fetch(API + '/api/register', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ username, password }) });
   const res = await r.json();
-  
   if(res.error) return alert(res.error);
-  
   user = { username, password, balance: 0 };
   localStorage.setItem('skyy_user', JSON.stringify(user));
   openProfile();
@@ -156,16 +170,9 @@ async function register() {
 async function login() {
   const username = document.getElementById('usernameInput').value;
   const password = document.getElementById('passwordInput').value;
-  if(!username || !password) return alert('Заполните все поля');
-  
-  const r = await fetch(API + '/api/login', {
-    method: 'POST', headers: {'Content-Type': 'application/json'},
-    body: JSON.stringify({ username, password })
-  });
+  const r = await fetch(API + '/api/login', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ username, password }) });
   const res = await r.json();
-  
   if(res.error) return alert(res.error);
-  
   user = { username, password, balance: res.user.balance };
   localStorage.setItem('skyy_user', JSON.stringify(user));
   openProfile();
@@ -177,19 +184,61 @@ function logout() {
   closeProfile();
 }
 
+// --- НАСТРОЙКИ ---
+function openSettings() {
+  document.getElementById('profileModal').classList.remove('active');
+  document.getElementById('settingsModal').classList.add('active');
+  document.getElementById('newEmail').value = user.email || '';
+}
+function closeSettings() {
+  document.getElementById('settingsModal').classList.remove('active');
+  document.getElementById('profileModal').classList.add('active');
+}
+async function saveSettings() {
+  const newPassword = document.getElementById('newPassword').value;
+  const newEmail = document.getElementById('newEmail').value;
+  
+  const r = await fetch(API + '/api/update-profile', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ username: user.username, newPassword, newEmail }) });
+  const res = await r.json();
+  
+  if(res.success) {
+    user.password = res.user.password;
+    user.email = res.user.email;
+    localStorage.setItem('skyy_user', JSON.stringify(user));
+    alert('Настройки сохранены');
+    closeSettings();
+  }
+}
+
+// --- ПОДДЕРЖКА ---
+function openSupport() {
+  document.getElementById('profileModal').classList.remove('active');
+  document.getElementById('supportModal').classList.add('active');
+}
+function closeSupport() {
+  document.getElementById('supportModal').classList.remove('active');
+  document.getElementById('profileModal').classList.add('active');
+}
+async function sendSupport() {
+  const msg = document.getElementById('supportMsg').value;
+  if(!msg) return alert('Введите сообщение');
+  
+  await fetch(API + '/api/support', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ username: user.username, message: msg }) });
+  
+  document.getElementById('supportMsg').value = '';
+  alert('Сообщение отправлено! Оператор ответит вам в ближайшее время.');
+  closeSupport();
+}
+
+// --- ОПЛАТА И ПОЕЗДКИ ---
 function topUp() { document.getElementById('topupModal').classList.add('active'); }
 
 async function confirmTopup() {
   const amount = document.getElementById('topupAmount').value;
-  if(!amount || amount < 30) return alert('Введите сумму от 30 рублей');
-  
-  await fetch(API + '/api/request-topup', {
-    method: 'POST', headers: {'Content-Type': 'application/json'},
-    body: JSON.stringify({ username: user.username, amount: amount })
-  });
-  
+  if(!amount || amount < 30) return alert('Сумма от 30 рублей');
+  await fetch(API + '/api/request-topup', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ username: user.username, amount: amount }) });
   document.getElementById('topupModal').classList.remove('active');
-  alert('Заявка отправлена! Оператор подтвердит оплату в течение пары минут.');
+  alert('Заявка отправлена! Ожидайте подтверждения.');
 }
 
 async function loadScooters() {
@@ -200,45 +249,23 @@ async function loadScooters() {
     document.getElementById('scooterList').innerHTML = '';
     
     data.forEach(s => {
-      L.marker([s.lat, s.lng], {
-        icon: L.divIcon({html:'<div class="marker"><span>🛴</span></div>', iconSize:[36,36], iconAnchor:[18,18]})
-      }).addTo(map).on('click', () => selectScooter(s));
-      
-      document.getElementById('scooterList').innerHTML += `
-        <div style="padding:12px; border-bottom:1px solid #333; display:flex; justify-content:space-between;" onclick='selectScooter(${JSON.stringify(s)})'>
-          <div><b>${s.id}</b><br><small style="color:var(--muted)">Заряд: ${s.battery || 100}%</small></div>
-          <div style="color:var(--accent);">30 ₽ + 7 ₽/мин</div>
-        </div>
-      `;
+      L.marker([s.lat, s.lng], { icon: L.divIcon({html:'<div class="marker"><span>🛴</span></div>', iconSize:[36,36], iconAnchor:[18,18]}) }).addTo(map).on('click', () => selectScooter(s));
+      document.getElementById('scooterList').innerHTML += `<div style="padding:12px; border-bottom:1px solid #333; display:flex; justify-content:space-between;" onclick='selectScooter(${JSON.stringify(s)})'><div><b>${s.id}</b><br><small style="color:var(--muted)">Заряд: ${s.battery || 100}%</small></div><div style="color:var(--accent);">30 ₽ + 7 ₽/мин</div></div>`;
     });
     document.getElementById('serverStatus').innerText = `Найдено самокатов: ${data.length}`;
-  } catch (e) {
-    document.getElementById('serverStatus').innerText = 'Ошибка сети';
-  }
+  } catch (e) { document.getElementById('serverStatus').innerText = 'Ошибка сети'; }
 }
 
 function selectScooter(s) {
   if(!user) { alert('Войдите в аккаунт!'); openProfile(); return; }
   currentScooter = s;
-  
-  if(user.balance < 30) {
-    alert('Недостаточно средств! Пополните баланс (минимум 30 ₽).');
-    topUp();
-    return;
-  }
-  
-  if(confirm(`Начать поездку на ${s.id}?\nСтоимость: 30 ₽ старт + 7 ₽/мин`)) {
-    startRide();
-  }
+  if(user.balance < 30) { alert('Недостаточно средств! Пополните баланс (минимум 30 ₽).'); topUp(); return; }
+  if(confirm(`Начать поездку на ${s.id}?\nСтоимость: 30 ₽ старт + 7 ₽/мин`)) startRide();
 }
 
 async function startRide() {
-  const r = await fetch(API + '/api/start-ride', {
-    method: 'POST', headers: {'Content-Type': 'application/json'},
-    body: JSON.stringify({ username: user.username, scooterId: currentScooter.id })
-  });
+  const r = await fetch(API + '/api/start-ride', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ username: user.username, scooterId: currentScooter.id }) });
   const res = await r.json();
-  
   if(res.error) { alert(res.error); return; }
   
   user.balance = res.balance;
@@ -255,18 +282,13 @@ async function startRide() {
 async function endRide() {
   clearInterval(rideInterval);
   const minutes = Math.ceil((Date.now() - rideStart) / 60000);
-  
-  const r = await fetch(API + '/api/end-ride', {
-    method: 'POST', headers: {'Content-Type': 'application/json'},
-    body: JSON.stringify({ username: user.username, minutes })
-  });
+  const r = await fetch(API + '/api/end-ride', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ username: user.username, minutes }) });
   const res = await r.json();
   
   user.balance = res.balance;
   localStorage.setItem('skyy_user', JSON.stringify(user));
   document.getElementById('rideModal').classList.remove('active');
-  
-  alert(`Поездка завершена.\nСписано: ${res.cost} ₽\nВаш баланс: ${user.balance} ₽`);
+  alert(`Поездка завершена.\nСписано: ${res.cost} ₽\nБаланс: ${user.balance} ₽`);
   loadScooters();
 }
 
