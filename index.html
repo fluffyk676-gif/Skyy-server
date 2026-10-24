@@ -8,7 +8,7 @@
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.css" />
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.js"></script>
 <style>
-:root{--bg:#f3f4f6;--card:#fff;--card2:#eceef2;--text:#14161a;--muted:#6b7280;--line:#e2e5ea;--accent:#ff5a1f;--green:#16a34a;--red:#ef4444;--shadow:0 6px 24px rgba(0,0,0,.14)}
+:root{--bg:#f3f4f6;--card:#fff;--card2:#eceef2;--text:#14161a;--muted:#6b7280;--line:#e2e5ea;--accent:#ff5a1f;--green:#16a34a;--red:#ef4444;--blue:#3b82f6;--shadow:0 6px 24px rgba(0,0,0,.14)}
 :root[data-theme=dark]{--bg:#101114;--card:#1b1d22;--card2:#272a31;--text:#f4f5f7;--muted:#8d93a0;--line:#2c2f37;--green:#22c55e;--shadow:0 6px 24px rgba(0,0,0,.5)}
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
 html,body{margin:0;height:100%;overflow:hidden;background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;transition:background .3s,color .3s}
@@ -26,8 +26,9 @@ html,body{margin:0;height:100%;overflow:hidden;background:var(--bg);color:var(--
 .fab{position:absolute;right:12px;z-index:400;transition:bottom .35s cubic-bezier(.2,.8,.2,1)}
 .sheet{position:absolute;left:0;right:0;bottom:0;z-index:500;background:var(--card);border-radius:24px 24px 0 0;padding:10px 16px calc(14px + env(safe-area-inset-bottom));box-shadow:0 -6px 24px rgba(0,0,0,.25);transition:transform .35s cubic-bezier(.2,.8,.2,1)}
 .sheet.min{transform:translateY(calc(100% - 78px))}
-.grab{width:100%;padding:4px 0 10px;cursor:pointer}.grab i{display:block;width:40px;height:5px;border-radius:3px;background:var(--line);margin:0 auto}
-.sheet h2{margin:0 0 4px;font-size:19px}.sub{font-size:13px;color:var(--muted);margin-bottom:8px}
+.grab{width:100%;padding:8px 0 14px;cursor:pointer;touch-action:none}.grab i{display:block;width:40px;height:5px;border-radius:3px;background:var(--line);margin:0 auto}
+.mc .grab{margin:-14px 0 4px}
+.sheet h2{margin:0 0 4px;font-size:19px;touch-action:none}.sub{font-size:13px;color:var(--muted);margin-bottom:8px}
 #list{max-height:34vh;overflow-y:auto;margin:0 -6px}
 .item{display:flex;align-items:center;gap:12px;padding:10px 6px;border-radius:14px;cursor:pointer}
 .item:active{background:var(--card2)}
@@ -37,7 +38,7 @@ html,body{margin:0;height:100%;overflow:hidden;background:var(--bg);color:var(--
 .bat{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:5px}
 .price{font-weight:700;color:var(--green);font-size:14px}
 .btn{width:100%;padding:15px;border:none;border-radius:16px;font-size:16px;font-weight:700;cursor:pointer;background:var(--accent);color:#fff;margin-top:10px;display:flex;justify-content:center;align-items:center;gap:8px}
-.btn:active{transform:scale(.98)}.btn.sec{background:var(--card2);color:var(--text)}.btn.red{background:var(--red)}
+.btn:active{transform:scale(.98)}.btn.sec{background:var(--card2);color:var(--text)}.btn.red{background:var(--red)}.btn:disabled{opacity:.45;pointer-events:none}
 .btn svg{width:20px;height:20px;fill:currentColor}
 .modal{position:absolute;inset:0;background:rgba(0,0,0,.6);z-index:1000;display:flex;align-items:flex-end;opacity:0;pointer-events:none;transition:opacity .25s}
 .modal.active{opacity:1;pointer-events:auto}
@@ -51,18 +52,20 @@ input:focus,textarea:focus{border-color:var(--accent)}
 .sw{width:50px;height:30px;border-radius:15px;background:var(--line);position:relative;cursor:pointer;transition:.2s;border:none}
 .sw::after{content:"";position:absolute;top:3px;left:3px;width:24px;height:24px;border-radius:50%;background:#fff;transition:.2s}
 :root[data-theme=dark] .sw{background:var(--accent)}:root[data-theme=dark] .sw::after{left:23px}
-.timer{font-size:68px;font-weight:800;margin:12px 0;font-variant-numeric:tabular-nums;text-align:center}
+.timer{font-size:68px;font-weight:800;margin:8px 0;font-variant-numeric:tabular-nums;text-align:center}
 .row{display:flex;gap:10px}
+.note{padding:12px 14px;border-radius:14px;font-size:14px;line-height:1.4;margin:8px 0;background:var(--card2);text-align:left}
+.note.warn{background:rgba(245,158,11,.15);color:#f59e0b}.note.bad{background:rgba(239,68,68,.15);color:var(--red)}.note.ok{background:rgba(34,197,94,.15);color:var(--green)}
+.photo{display:grid;place-items:center;min-height:170px;border:2px dashed var(--line);border-radius:16px;cursor:pointer;overflow:hidden;color:var(--muted);font-weight:600;margin:10px 0}
+.photo img{width:100%;max-height:280px;object-fit:cover;display:block}
 .pin{position:relative;width:44px;height:52px;filter:drop-shadow(0 4px 6px rgba(0,0,0,.35))}
 .pin svg.bg{position:absolute;inset:0;width:44px;height:52px}
 .pin .ic{position:absolute;left:9px;top:6px;width:26px;height:26px;fill:#fff}
 .pin .b{position:absolute;right:-6px;top:-4px;font-size:10px;font-weight:700;color:#fff;border-radius:8px;padding:1px 5px;border:2px solid #fff}
+.park{width:28px;height:28px;border-radius:50%;background:var(--blue);color:#fff;font-weight:800;font-size:15px;display:grid;place-items:center;border:2px solid #fff;box-shadow:0 2px 6px rgba(0,0,0,.35)}
 .user-dot{width:18px;height:18px;border-radius:50%;background:#0ea5e9;border:3px solid #fff;box-shadow:0 0 0 8px rgba(14,165,233,.25)}
 #toast{position:absolute;left:50%;top:calc(70px + env(safe-area-inset-top));transform:translate(-50%,-20px);background:var(--text);color:var(--bg);padding:11px 18px;border-radius:14px;font-size:14px;font-weight:600;z-index:2000;opacity:0;transition:.25s;pointer-events:none;max-width:90%;text-align:center}
 #toast.show{opacity:1;transform:translate(-50%,0)}
-.mc .grab,.sheet .grab{padding:8px 0 14px;touch-action:none}
-.mc .grab{margin:-14px 0 4px}
-.sheet h2{touch-action:none}
 </style>
 </head>
 <body>
@@ -99,13 +102,26 @@ input:focus,textarea:focus{border-color:var(--accent)}
   </div></div>
  
   <div class="modal" id="rideModal"><div class="mc">
-    <h2 style="color:var(--green);text-align:center" id="rideStatus">В пути</h2>
+    <h2 style="text-align:center" id="rideStatus">В пути</h2>
     <div class="timer" id="rideTimer">00:00</div>
+    <div class="note" id="rideNote" style="display:none"></div>
     <div class="row">
       <button class="btn sec" onclick="toast('Фонарь включён')"><svg viewBox="0 0 24 24"><path d="M9 21c0 .6.4 1 1 1h4c.6 0 1-.4 1-1v-1H9v1zm3-19a7 7 0 0 0-4 12.7V17c0 .6.4 1 1 1h6c.6 0 1-.4 1-1v-2.3A7 7 0 0 0 12 2z"/></svg>Фонарь</button>
       <button class="btn sec" id="pauseBtn" onclick="togglePause()"></button>
     </div>
-    <button class="btn red" onclick="endRide()">Завершить поездку</button>
+    <button class="btn red" id="endBtn" onclick="openFinish()">Завершить поездку</button>
+  </div></div>
+ 
+  <div class="modal" id="finishModal"><div class="mc">
+    <h2>Завершение поездки</h2>
+    <div class="sub">Поставьте самокат на официальную парковку (синяя «P» на карте) и пристегните к металлической ограде. На фото должны быть видны и самокат, и ограда.</div>
+    <div class="note" id="parkHint"></div>
+    <label class="photo" id="photoBox">
+      <input type="file" id="photoInput" accept="image/*" capture="environment" hidden onchange="onPhoto(this)" />
+      <img id="photoPrev" hidden alt="" /><span id="photoText">Сфотографировать самокат</span>
+    </label>
+    <button class="btn" id="sendPhotoBtn" onclick="sendFinish()" disabled>Отправить на проверку</button>
+    <button class="btn sec" onclick="closeM('finishModal')">Назад</button>
   </div></div>
  
   <div class="modal" id="profileModal"><div class="mc">
@@ -152,7 +168,8 @@ const PAUSE = '<svg viewBox="0 0 24 24"><path d="M6 19h4V5H6zm8-14v14h4V5z"/></s
  
 let user = null; try { user = JSON.parse(localStorage.getItem('skyy_user')); } catch(e){}
 let theme = localStorage.getItem('skyy_theme') || 'dark';
-let allScooters = [], currentScooter = null, selectedTariff = 'minute', ride = null, timerId = null, userPos = null;
+let allScooters = [], parkings = [], currentScooter = null, selectedTariff = 'minute';
+let ride = null, timerId = null, pollId = null, userPos = null, photoData = null, lastReview = '';
  
 /* ---------- ТЕМА ---------- */
 function applyTheme(){
@@ -164,7 +181,7 @@ function applyTheme(){
 function toggleTheme(){ theme = theme==='dark' ? 'light' : 'dark'; localStorage.setItem('skyy_theme', theme); applyTheme(); }
  
 /* ---------- КАРТА ---------- */
-const map = L.map('map', {zoomControl:false, maxZoom:19, attributionControl:true}).setView([55.75,37.61], 15);
+const map = L.map('map', {zoomControl:false, maxZoom:19}).setView([55.75,37.61], 15);
 map.attributionControl.setPrefix('');
 let tiles;
 function setTiles(){
@@ -172,6 +189,7 @@ function setTiles(){
   tiles = L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {maxZoom:19, attribution:'© OpenStreetMap'}).addTo(map);
   $('map').classList.toggle('dark', theme==='dark');
 }
+const parkLayer = L.layerGroup().addTo(map);
 const layer = L.layerGroup().addTo(map);
 applyTheme();
  
@@ -196,6 +214,27 @@ function locate(){
 }
 if (navigator.geolocation) {
   navigator.geolocation.watchPosition(p => { const first = !userPos; setPos(p); if (first) map.setView(userPos, 16); }, () => {}, {enableHighAccuracy:true, maximumAge:5000});
+}
+ 
+/* ---------- ПАРКОВКИ ---------- */
+async function loadParkings(){
+  try {
+    parkings = await (await fetch(API+'/api/parkings')).json();
+    parkLayer.clearLayers();
+    parkings.forEach(p => {
+      L.circle([p.lat,p.lng], {radius:p.r, color:'#3b82f6', weight:2, fillColor:'#3b82f6', fillOpacity:.18, interactive:false}).addTo(parkLayer);
+      L.marker([p.lat,p.lng], {icon:L.divIcon({className:'', iconSize:[28,28], iconAnchor:[14,14], html:'<div class="park">P</div>'}), interactive:false}).addTo(parkLayer);
+    });
+  } catch(e){}
+}
+function paintParkHint(){
+  const el = $('parkHint');
+  if (!parkings.length) { el.className='note'; el.textContent='Официальные парковки пока не отмечены на карте. Поставьте самокат аккуратно и пристегните к ограде.'; return; }
+  if (!userPos) { el.className='note warn'; el.textContent='Включите геолокацию, чтобы проверить, что вы на парковке.'; return; }
+  let best = null;
+  parkings.forEach(p => { const d = dist(userPos,[p.lat,p.lng]); if (!best || d - p.r < best.d - best.p.r) best = {p, d}; });
+  if (best.d <= best.p.r + 20) { el.className='note ok'; el.textContent='Вы на парковке «' + best.p.name + '». Можно фотографировать.'; }
+  else { el.className='note bad'; el.textContent='Вы вне парковки. Ближайшая — «' + best.p.name + '», до неё ' + fmtD(Math.max(0, best.d - best.p.r)) + '. Отвезите самокат туда.'; }
 }
  
 /* ---------- САМОКАТЫ ---------- */
@@ -232,7 +271,7 @@ function placeFab(){ $('locBtn').style.bottom = ($('sheet').classList.contains('
 new ResizeObserver(placeFab).observe($('sheet'));
  
 /* ---------- ХЕЛПЕРЫ ---------- */
-let tt; function toast(t){ const e=$('toast'); e.textContent=t; e.classList.add('show'); clearTimeout(tt); tt=setTimeout(()=>e.classList.remove('show'),2600); }
+let tt; function toast(t){ const e=$('toast'); e.textContent=t; e.classList.add('show'); clearTimeout(tt); tt=setTimeout(()=>e.classList.remove('show'),3200); }
 const openM = id => $(id).classList.add('active'), closeM = id => $(id).classList.remove('active');
 async function post(path, body){
   const r = await fetch(API+path, {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(body)});
@@ -279,35 +318,89 @@ async function confirmTariff(){
   user.balance = res.balance; saveUser(); startRideUI(res.ride, currentScooter.id);
 }
 function startRideUI(r, id){
-  ride = r; currentScooter = currentScooter || {id}; currentScooter.id = id;
-  openM('rideModal'); paintPause(); clearInterval(timerId);
+  ride = r; currentScooter = currentScooter || {id}; currentScooter.id = id; lastReview = (r.review && r.review.status) || '';
+  openM('rideModal'); paintRide(); clearInterval(timerId); clearInterval(pollId);
   const tick = () => {
     const now = Date.now(), paused = ride.paused ? now - ride.pausedAt : 0;
     const sec = Math.max(0, Math.floor((now - ride.startTime - (ride.pausedMs||0) - paused) / 1000));
     $('rideTimer').textContent = String(Math.floor(sec/60)).padStart(2,'0') + ':' + String(sec%60).padStart(2,'0');
   };
-  tick(); timerId = setInterval(tick, 1000);
+  tick(); timerId = setInterval(tick, 1000); pollId = setInterval(pollRide, 4000);
 }
-function paintPause(){
-  $('rideStatus').textContent = ride.paused ? 'Пауза' : 'В пути';
-  $('rideStatus').style.color = ride.paused ? '#f59e0b' : 'var(--green)';
-  $('pauseBtn').innerHTML = ride.paused ? PLAY : PAUSE;
+function paintRide(){
+  const rv = ride.review || {}, pending = rv.status === 'pending';
+  $('rideStatus').textContent = pending ? 'Проверка фото' : ride.paused ? 'Пауза' : 'В пути';
+  $('rideStatus').style.color = pending ? '#f59e0b' : ride.paused ? '#f59e0b' : 'var(--green)';
+  $('pauseBtn').innerHTML = ride.paused ? PLAY : PAUSE; $('pauseBtn').disabled = pending;
+  const note = $('rideNote'); note.style.display = 'none';
+  if (pending) { note.style.display = 'block'; note.className = 'note warn'; note.textContent = 'Администратор проверяет фото. Пока поездка не завершена, время тарифицируется.'; }
+  if (rv.status === 'rejected') { note.style.display = 'block'; note.className = 'note bad'; note.textContent = 'Поездку нельзя завершить: ' + (rv.comment || 'переставьте самокат на парковку и пристегните к ограде') + '. Время продолжает тарифицироваться.'; }
+  $('endBtn').disabled = pending;
+  $('endBtn').textContent = pending ? 'Ждём проверку…' : rv.status === 'rejected' ? 'Отправить новое фото' : 'Завершить поездку';
 }
 async function togglePause(){
   const res = await post('/api/toggle-pause', {username:user.username, scooterId:currentScooter.id});
   if (res.error) return toast(res.error);
-  ride.paused = res.isPaused; ride.pausedAt = res.pausedAt; ride.pausedMs = res.pausedMs; paintPause();
+  ride.paused = res.isPaused; ride.pausedAt = res.pausedAt; ride.pausedMs = res.pausedMs; paintRide();
 }
-async function endRide(){
-  const res = await post('/api/end-ride', {username:user.username, scooterId:currentScooter.id});
-  if (res.error) return toast(res.error);
-  clearInterval(timerId); ride = null; user.balance = res.balance; saveUser();
-  closeM('rideModal'); toast(`Поездка завершена. Доплата: ${res.extraCost} ₽, баланс: ${user.balance} ₽`); loadScooters();
+async function pollRide(){
+  if (!user || !ride) return;
+  try {
+    const r = await (await fetch(API+'/api/my-ride/'+encodeURIComponent(user.username))).json();
+    if (r.ride) {
+      Object.assign(ride, r.ride); paintRide();
+      const st = (ride.review && ride.review.status) || '';
+      if (st === 'rejected' && lastReview !== 'rejected') toast('Нужно переставить самокат');
+      lastReview = st;
+    } else if (r.finished) finishedUI(r.finished);
+  } catch(e){}
+}
+function finishedUI(f){
+  clearInterval(timerId); clearInterval(pollId); ride = null;
+  user.balance = f.balance; saveUser(); closeM('rideModal');
+  toast(`Поездка завершена. Доплата: ${f.extraCost} ₽, баланс: ${f.balance} ₽`); loadScooters();
 }
 async function checkActiveRide(){
   if (!user) return;
-  try { const r = await (await fetch(API+'/api/my-ride/'+encodeURIComponent(user.username))).json();
-    if (r.ride) startRideUI(r.ride, r.scooterId); } catch(e){}
+  try {
+    const r = await (await fetch(API+'/api/my-ride/'+encodeURIComponent(user.username))).json();
+    if (r.ride) startRideUI(r.ride, r.scooterId); else if (r.finished) { user.balance = r.finished.balance; saveUser(); toast(`Поездка завершена. Доплата: ${r.finished.extraCost} ₽`); }
+  } catch(e){}
+}
+ 
+/* ---------- ЗАВЕРШЕНИЕ С ФОТО ---------- */
+function openFinish(){
+  photoData = null; $('photoPrev').hidden = true; $('photoText').hidden = false; $('photoInput').value = ''; $('sendPhotoBtn').disabled = true;
+  paintParkHint(); openM('finishModal');
+}
+function compress(file){
+  return new Promise((res, rej) => {
+    const img = new Image(), u = URL.createObjectURL(file);
+    img.onload = () => {
+      const k = Math.min(1, 1000 / Math.max(img.width, img.height)), c = document.createElement('canvas');
+      c.width = Math.round(img.width * k); c.height = Math.round(img.height * k);
+      c.getContext('2d').drawImage(img, 0, 0, c.width, c.height); URL.revokeObjectURL(u);
+      res(c.toDataURL('image/jpeg', .72));
+    };
+    img.onerror = rej; img.src = u;
+  });
+}
+async function onPhoto(inp){
+  const f = inp.files[0]; if (!f) return;
+  try {
+    photoData = await compress(f);
+    $('photoPrev').src = photoData; $('photoPrev').hidden = false; $('photoText').hidden = true; $('sendPhotoBtn').disabled = false;
+  } catch(e){ toast('Не удалось обработать фото'); }
+}
+async function sendFinish(){
+  if (!photoData) return toast('Сначала сделайте фото');
+  $('sendPhotoBtn').disabled = true;
+  try {
+    const res = await post('/api/request-finish', {username:user.username, scooterId:currentScooter.id, photo:photoData});
+    if (res.error) { $('sendPhotoBtn').disabled = false; return toast(res.error); }
+    ride.review = {status:'pending'}; lastReview = 'pending'; paintRide(); closeM('finishModal');
+    toast('Фото отправлено на проверку');
+  } catch(e){ $('sendPhotoBtn').disabled = false; toast('Не удалось отправить. Проверьте связь'); }
 }
  
 /* ---------- ПОПОЛНЕНИЕ / ПОДДЕРЖКА ---------- */
@@ -348,7 +441,8 @@ document.querySelectorAll('.modal').forEach(m => {
   });
 })();
  
-setInterval(loadScooters, 5000); loadScooters(); checkActiveRide(); placeFab();
+setInterval(loadScooters, 5000); setInterval(loadParkings, 60000);
+loadScooters(); loadParkings(); checkActiveRide(); placeFab();
 </script>
 </body>
 </html>
