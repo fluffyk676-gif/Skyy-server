@@ -10,7 +10,7 @@ app.use(express.urlencoded({ extended: true }));
 const scooters = {};
 const commandQueue = {};
 const users = {};
-const pendingTopups = {}; // Заявки на пополнение
+const pendingTopups = {}; 
 
 // --- API СЕРВЕРА ---
 app.post('/api/scooter/location', (req, res) => {
@@ -27,20 +27,39 @@ app.post('/api/login', (req, res) => {
   res.json(users[phone]);
 });
 
-// Создать заявку на пополнение
+// Прием заявки на пополнение
 app.post('/api/request-topup', (req, res) => {
   const { phone, amount } = req.body;
   const id = Date.now().toString();
   pendingTopups[id] = { id, phone, amount, status: 'pending' };
+  console.log(`Новая заявка: ${phone} на ${amount} руб.`);
   res.json({ success: true });
+});
+
+// Старт/Конец поездки
+app.post('/api/start-ride', (req, res) => {
+  const { phone, scooterId } = req.body;
+  const user = users[phone];
+  if (!user || user.balance < 30) return res.status(400).json({ error: 'Мало средств (нужно 30₽)' });
+  user.balance -= 30;
+  commandQueue[scooterId] = 'START';
+  res.json({ success: true, balance: user.balance });
+});
+
+app.post('/api/end-ride', (req, res) => {
+  const { phone, minutes } = req.body;
+  const user = users[phone];
+  const cost = minutes * 7;
+  user.balance -= cost;
+  res.json({ balance: user.balance, cost });
 });
 
 // --- АДМИН-ПАНЕЛЬ ---
 app.get('/admin', (req, res) => {
-  let html = `<html><head><meta charset="utf-8"><title>Skyy Admin</title>
+  let html = `<html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Skyy Admin</title>
   <style>body{font-family:sans-serif;padding:20px;background:#121212;color:#fff;} 
-  .item{background:#1c1c1e;padding:15px;margin-bottom:10px;border-radius:10px;display:flex;justify-content:space-between;align-items:center;}
-  .btn{background:#22c55e;color:#fff;border:none;padding:10px 20px;border-radius:10px;cursor:pointer;font-weight:bold;}
+  .item{background:#1c1c1e;padding:15px;margin-bottom:10px;border-radius:10px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;}
+  .btn{background:#22c55e;color:#fff;border:none;padding:12px 20px;border-radius:10px;cursor:pointer;font-weight:bold;font-size:14px;}
   .btn-red{background:#ef4444;}</style></head><body>
   <h1>Заявки на пополнение</h1><div id="list">Загрузка...</div>
   <script>
@@ -54,7 +73,7 @@ app.get('/admin', (req, res) => {
             <b>\${item.phone}</b><br>
             <span style="color:#22c55e;font-size:20px;">\${item.amount} ₽</span>
           </div>
-          <div>
+          <div style="display:flex; gap:10px;">
             <button class="btn" onclick="confirm('\${item.id}', '\${item.phone}', \${item.amount})">Подтвердить</button>
             <button class="btn btn-red" onclick="reject('\${item.id}')">Отклонить</button>
           </div>
@@ -79,19 +98,16 @@ app.get('/admin', (req, res) => {
     }
     
     load();
-    setInterval(load, 5000);
+    setInterval(load, 3000);
   </script></body></html>`;
   res.send(html);
 });
 
-// API для админки
-app.get('/api/admin/topups', (req, res) => {
-  res.json(Object.values(pendingTopups));
-});
+app.get('/api/admin/topups', (req, res) => res.json(Object.values(pendingTopups)));
 
 app.post('/api/admin/confirm-topup', (req, res) => {
   const { id, phone, amount } = req.body;
-  if (users[phone]) users[phone].balance += amount;
+  if (users[phone]) users[phone].balance += parseInt(amount);
   delete pendingTopups[id];
   res.send('OK');
 });
