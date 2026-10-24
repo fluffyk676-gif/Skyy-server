@@ -18,8 +18,16 @@ const BOT_TOKEN = "8481132005:AAE4BVZTHpoW1_LmciAoWKyDddzCAvLivCM";
 const ADMIN_ID = 5832179468; 
 
 // Запуск бота
-const bot = new TelegramBot(BOT_TOKEN, { polling: true });
-console.log("Бот запущен!");
+let bot;
+try {
+    bot = new TelegramBot(BOT_TOKEN, { polling: true });
+    console.log("Бот успешно запущен!");
+    bot.on('polling_error', (error) => {
+        console.log("ОШИБКА БОТА (polling):", error.message);
+    });
+} catch (e) {
+    console.log("КРИТИЧЕСКАЯ ОШИБКА ПРИ ЗАПУСКЕ БОТА:", e.message);
+}
 
 // Обработка кнопок от админа (тебя)
 bot.on('callback_query', async (query) => {
