@@ -1,7 +1,6 @@
 const express = require('express');
 const cors = require('cors');
 const path = require('path');
-const OpenAI = require('openai');
 
 const app = express();
 app.set('trust proxy', 1);
@@ -9,15 +8,7 @@ app.use(cors());
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true }));
 
-// Ключ берется из настроек Render (Environment -> DEEPSEEK_API_KEY)
-const DEEPSEEK_KEY = process.env.DEEPSEEK_API_KEY || ''; 
-const openai = new OpenAI({ 
-  apiKey: DEEPSEEK_KEY,
-  baseURL: 'https://api.deepseek.com' 
-});
-
 const ADMIN_CODE = String(process.env.ADMIN_CODE || '2003');
-let AI_ENABLED = true; // По умолчанию ИИ "включен", но проверять будет только текст
 
 const scooters = {};
 const users = {};
@@ -44,7 +35,6 @@ function distM(a, b) {
   const x = Math.sin(dLa / 2) ** 2 + Math.cos(a.lat * r) * Math.cos(b.lat * r) * Math.sin(dLo / 2) ** 2;
   return 2 * R * Math.asin(Math.sqrt(x));
 }
-
 function zoneOf(s) {
   if (!parkings.length) return { inZone: null, zone: null };
   if (!s || s.lat == null) return { inZone: null, zone: null };
@@ -63,10 +53,8 @@ function adminAuth(req, res, next) {
 
 app.use('/api/admin', adminAuth);
 
-// ---------- АДМИНКА ----------
+// ---------- РОУТЫ АДМИНКИ ----------
 app.post('/api/admin/login', (req, res) => res.json({ success: true }));
-app.get('/api/admin/ai-status', (req, res) => res.json({ enabled: AI_ENABLED, hasKey: !!DEEPSEEK_KEY }));
-app.post('/api/admin/toggle-ai', (req, res) => { AI_ENABLED = !AI_ENABLED; res.json({ enabled: AI_ENABLED }); });
 
 app.get('/api/admin/data', (req, res) => {
   res.json({
@@ -82,6 +70,11 @@ app.post('/api/admin/parking', (req, res) => {
   if (!name || lat == null || lng == null) return res.status(400).json({ error: 'Неверные данные' });
   parkings.push({ id: 'manual' + Date.now(), name: String(name), lat: parseFloat(lat), lng: parseFloat(lng), r: parseInt(r) || 30 });
   res.json({ success: true, parkings });
+});
+
+app.delete('/api/admin/parkings/:id', (req, res) => {
+  parkings = parkings.filter(p => p.id !== req.params.id);
+  res.json({ success: true });
 });
 
 app.post('/api/admin/review/:id', (req, res) => {
@@ -127,7 +120,7 @@ app.post('/api/admin/support/reply/:id', (req, res) => {
   res.json({ success: true });
 });
 
-// ---------- КООРДИНАТЫ ----------
+// ---------- 1. Координаты ----------
 app.post('/api/scooter/location', (req, res) => {
   const { id, lat, lon, battery } = req.body;
   if (id && lat && lon) {
@@ -156,7 +149,7 @@ app.get('/api/scooters', (req, res) => {
 
 app.get('/api/parkings', (req, res) => res.json(parkings));
 
-// ---------- АККАУНТЫ ----------
+// ---------- 2. Аккаунты ----------
 app.post('/api/register', (req, res) => {
   const username = String(req.body.username || '').trim();
   const password = String(req.body.password || '');
@@ -173,14 +166,14 @@ app.post('/api/login', (req, res) => {
   res.json({ success: true, user });
 });
 
-// ---------- ПОДДЕРЖКА ----------
+// ---------- 3. Поддержка ----------
 app.post('/api/support', (req, res) => {
   supportTickets.push({ id: Date.now().toString(), username: req.body.username, message: req.body.message, reply: null, time: new Date().toLocaleString('ru-RU') });
   res.json({ success: true });
 });
 app.get('/api/support/:username', (req, res) => res.json(supportTickets.filter(t => t.username === req.params.username)));
 
-// ---------- ПОПОЛНЕНИЕ ----------
+// ---------- 4. Пополнение ----------
 app.post('/api/request-topup', (req, res) => {
   const amount = parseInt(req.body.amount);
   if (!users[req.body.username] || !amount || amount < 30) return res.status(400).json({ error: 'Неверные данные' });
@@ -189,7 +182,7 @@ app.post('/api/request-topup', (req, res) => {
   res.json({ success: true });
 });
 
-// ---------- ПОЕЗДКИ ----------
+// ---------- 5. Поездки ----------
 app.post('/api/start-ride', (req, res) => {
   const { username, scooterId, tariff } = req.body;
   const user = users[username];
@@ -218,13 +211,12 @@ app.post('/api/toggle-pause', (req, res) => {
   res.json({ success: true, isPaused: ride.paused, pausedAt: ride.pausedAt, pausedMs: ride.pausedMs });
 });
 
-// === ЗАВЕРШЕНИЕ (БЕЗ ОТПРАВКИ ФОТО В ИИ, ЧТОБЫ НЕ ПАДАЛО) ===
-app.post('/api/request-finish', async (req, res) => {
+// === ЗАВЕРШЕНИЕ (РУЧНАЯ ПРОВЕРКА) ===
+app.post('/api/request-finish', (req, res) => {
   const { username, scooterId, photo } = req.body;
   const ride = rides[scooterId];
   if (!ride || ride.username !== username) return res.status(400).json({ error: 'Поездка не найдена' });
   
-  // Сразу отправляем на ручную проверку, чтобы сервер не крашился из-за DeepSeek
   const s = scooters[scooterId];
   const z = zoneOf(s);
   const id = Date.now().toString();
@@ -279,7 +271,7 @@ app.get('/api/ride-status/:scooterId', (req, res) => {
   res.json({ status: ride.review ? ride.review.status : 'in_progress', review: ride.review });
 });
 
-// ---------- 6. Админка ----------
+// ---------- 6. Админка (HTML) ----------
 const ADMIN_HTML = `<!DOCTYPE html>
 <html lang="ru">
 <head>
@@ -306,9 +298,6 @@ input{padding:11px;border-radius:8px;border:none;background:#2d2d2d;color:#fff;f
 #pmap{height:320px;border-radius:12px;margin-bottom:10px}
 .reply{display:flex;gap:8px;margin-top:10px}.reply input{flex:1}
 textarea{width:100%;background:#2d2d2d;color:#fff;border:none;border-radius:8px;padding:10px;height:90px;font-size:12px}
-.ai-panel { display: flex; gap: 10px; align-items: center; background: #1c1c1e; padding: 12px; border-radius: 12px; margin-bottom: 16px; }
-.status-dot { width: 10px; height: 10px; border-radius: 50%; background: #ef4444; }
-.status-dot.on { background: #22c55e; }
 </style>
 </head>
 <body>
@@ -324,14 +313,6 @@ textarea{width:100%;background:#2d2d2d;color:#fff;border:none;border-radius:8px;
       <button class="btn gray" onclick="location.reload()">🔄 Обновить</button>
       <button class="btn gray" onclick="logout()">Выйти</button>
     </div>
-  </div>
-  <div class="ai-panel">
-    <div class="status-dot" id="aiDot"></div>
-    <div style="flex:1">
-      <b>Проверка фото (DeepSeek)</b>
-      <div class="muted" id="aiText">Загрузка...</div>
-    </div>
-    <button class="btn" id="aiBtn" onclick="toggleAI()" style="display:none">Включить</button>
   </div>
   <h2>📸 Проверка парковки</h2><div id="reviews" class="muted">Загрузка…</div>
   <h2>🛴 Активные поездки</h2><div id="rides" class="muted">Загрузка…</div>
@@ -350,7 +331,7 @@ textarea{width:100%;background:#2d2d2d;color:#fff;border:none;border-radius:8px;
 <script>
 const $ = id => document.getElementById(id);
 const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-let CODE = sessionStorage.getItem('skyy_admin') || '', timer = null, pmap = null, tmp = null, parkLayer = null, parks = [], aiEnabled = false;
+let CODE = sessionStorage.getItem('skyy_admin') || '', timer = null, pmap = null, tmp = null, parkLayer = null, parks = [];
 async function api(path, method, body) {
   const r = await fetch(path, { method: method || 'GET', headers: { 'Content-Type': 'application/json', 'x-admin-code': CODE }, body: body ? JSON.stringify(body) : undefined });
   if (r.status === 401 || r.status === 429) { const j = await r.json().catch(() => ({})); const e = new Error(j.error || 'Нет доступа'); e.auth = true; throw e; }
@@ -364,24 +345,8 @@ async function doLogin() {
 function logout() { sessionStorage.removeItem('skyy_admin'); CODE = ''; clearInterval(timer); location.reload(); }
 function start() {
   $('login').style.display = 'none'; $('main').style.display = 'block';
-  initMap(); loadAIStatus(); loadAll(); loadParks(); timer = setInterval(loadAll, 6000);
+  initMap(); loadAll(); loadParks(); timer = setInterval(loadAll, 6000);
 }
-async function loadAIStatus() {
-  const s = await api('/api/admin/ai-status');
-  aiEnabled = s.enabled;
-  if (!s.hasKey) {
-    $('aiDot').className = 'status-dot';
-    $('aiText').innerText = 'API-ключ DeepSeek не задан';
-    $('aiBtn').style.display = 'none';
-    return;
-  }
-  $('aiDot').className = 'status-dot ' + (aiEnabled ? 'on' : '');
-  $('aiText').innerText = aiEnabled ? 'Включена (авто-проверка)' : 'Выключена (ручная проверка)';
-  $('aiBtn').style.display = 'block';
-  $('aiBtn').innerText = aiEnabled ? 'Выключить' : 'Включить';
-  $('aiBtn').className = aiEnabled ? 'btn red' : 'btn';
-}
-async function toggleAI() { await api('/api/admin/toggle-ai', 'POST', {}); loadAIStatus(); }
 async function loadAll() {
   try {
     const data = await api('/api/admin/data');
