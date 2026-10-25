@@ -588,7 +588,7 @@ app.get('/tracker.html', (req, res) => {
 // Платный вариант: ANTHROPIC_API_KEY. Если заданы оба, используется Gemini.
 const GEMINI_KEY = process.env.GEMINI_API_KEY, ANTHROPIC_KEY = process.env.ANTHROPIC_API_KEY;
 const AI_PROVIDER = GEMINI_KEY ? 'gemini' : ANTHROPIC_KEY ? 'anthropic' : null;
-const AI_MODEL = process.env.AI_MODEL || (AI_PROVIDER === 'anthropic' ? 'claude-sonnet-5-5' : 'gemini-2.5-flash');
+const AI_MODEL = process.env.AI_MODEL || (AI_PROVIDER === 'anthropic' ? 'claude-sonnet-5-5' : 'gemini-3.8-flash');
 const AI_READY = !!AI_PROVIDER;
 let aiEnabled = false;
 const aiLog = [];
@@ -701,7 +701,12 @@ app.post('/api/admin/ai', (req, res) => {
   if (req.body.enabled && !AI_READY) return res.status(400).json({ error: 'Добавьте бесплатный GEMINI_API_KEY в Render → Environment' });
   aiEnabled = !!req.body.enabled;
   logAI(aiEnabled ? 'ИИ включён' : 'ИИ выключен');
-  if (aiEnabled) aiSweep();
+  if (aiEnabled) {
+    // после смены модели/ключа даём необработанным заявкам новые попытки
+    supportTickets.forEach(t => { if (!t.reply && !t.escalated) t.aiTries = 0; });
+    Object.values(reviews).forEach(r => { r.aiTries = 0; r.aiDone = false; });
+    aiSweep();
+  }
   res.json({ success: true, enabled: aiEnabled });
 });
  
