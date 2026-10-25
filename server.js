@@ -119,7 +119,7 @@ app.post('/api/support', (req, res) => {
     reply: null, time: new Date().toLocaleString('ru-RU')
   };
   supportTickets.push(t);
-  if (aiEnabled && ANTHROPIC_KEY) processTicket(t);
+  if (aiEnabled && AI_READY) processTicket(t);
   res.json({ success: true });
 });
 app.get('/api/support/:username', (req, res) =>
@@ -182,7 +182,7 @@ app.post('/api/request-finish', (req, res) => {
     requestedAt: Date.now(), time: new Date().toLocaleString('ru-RU')
   };
   ride.review = { reviewId: id, status: 'pending' };
-  if (aiEnabled && ANTHROPIC_KEY) processReview(reviews[id]);
+  if (aiEnabled && AI_READY) processReview(reviews[id]);
   res.json({ success: true });
 });
  
@@ -372,7 +372,7 @@ function reply(id) {
 function loadAI() {
   return api('/api/admin/ai').then(function (d) {
     var h = '<div class="row"><div><b>' + (d.enabled ? 'Включён' : 'Выключен') + '</b><br><span class="muted">Отвечает в поддержке и проверяет фото парковки. Пополнения и деньги — только вручную.</span>'
-      + (d.hasKey ? '<br><span class="muted">Модель: ' + esc(d.model) + '</span>' : '<br><span style="color:#ef4444">Нет ключа ANTHROPIC_API_KEY (Render → Environment)</span>')
+      + (d.hasKey ? '<br><span class="muted">Модель: ' + esc(d.model) + '</span>' : '<br><span style="color:#ef4444">Нет ключа GEMINI_API_KEY (бесплатно: aistudio.google.com → Get API key; вставьте в Render → Environment)</span>')
       + '</div><button class="btn ' + (d.enabled ? 'red' : '') + '" onclick="toggleAI(' + (!d.enabled) + ')">' + (d.enabled ? 'Выключить ИИ' : 'Включить ИИ') + '</button></div>';
     if (d.log.length) h += '<div style="margin-top:12px">' + d.log.map(function (l) { return '<div class="muted" style="margin-top:6px">' + esc(l.time) + ' · ' + esc(l.text) + '</div>'; }).join('') + '</div>';
     $('aiBox').innerHTML = h;
@@ -582,23 +582,48 @@ app.get('/tracker.html', (req, res) => {
 });
  
 // ---------- ИИ-помощник (включается кнопкой в админке) ----------
-// Нужен ключ ANTHROPIC_API_KEY в Render → Environment. Модель можно сменить переменной AI_MODEL.
+// Нужен ключ в Render → Environment (см. ниже). Модель можно сменить переменной AI_MODEL.
 // ИИ только отвечает в поддержке и проверяет фото парковки. Баланс и пополнения он не трогает.
-const ANTHROPIC_KEY = process.env.ANTHROPIC_API_KEY;
-const AI_MODEL = process.env.AI_MODEL || 'claude-sonnet-5-5';
+// Бесплатный вариант: GEMINI_API_KEY (ключ из aistudio.google.com → Get API key, без карты).
+// Платный вариант: ANTHROPIC_API_KEY. Если заданы оба, используется Gemini.
+const GEMINI_KEY = process.env.GEMINI_API_KEY, ANTHROPIC_KEY = process.env.ANTHROPIC_API_KEY;
+const AI_PROVIDER = GEMINI_KEY ? 'gemini' : ANTHROPIC_KEY ? 'anthropic' : null;
+const AI_MODEL = process.env.AI_MODEL || (AI_PROVIDER === 'anthropic' ? 'claude-sonnet-5-5' : 'gemini-2.5-flash');
+const AI_READY = !!AI_PROVIDER;
 let aiEnabled = false;
 const aiLog = [];
 function logAI(text) { aiLog.unshift({ time: new Date().toLocaleString('ru-RU'), text }); if (aiLog.length > 40) aiLog.pop(); }
  
-async function askClaude(system, content) {
-  const r = await fetch('https://api.anthropic.com/v1/messages', {
-    method: 'POST',
-    headers: { 'x-api-key': ANTHROPIC_KEY, 'anthropic-version': '2023-06-01', 'content-type': 'application/json' },
-    body: JSON.stringify({ model: AI_MODEL, max_tokens: 500, system, messages: [{ role: 'user', content }] })
-  });
-  const j = await r.json();
-  if (!r.ok) throw new Error((j.error && j.error.message) || ('HTTP ' + r.status));
-  const text = (j.content || []).filter(b => b.type === 'text').map(b => b.text).join('');
+// content: строка или массив блоков [{type:'image', source:{data}}, {type:'text', text}]
+async function askAI(system, content) {
+  const blocks = typeof content === 'string' ? [{ type: 'text', text: content }] : content;
+  let text = '';
+  if (AI_PROVIDER === 'gemini') {
+    const parts = blocks.map(b => b.type === 'image'
+      ? { inlineData: { mimeType: 'image/jpeg', data: b.source.data } } : { text: b.text });
+    const r = await fetch('https://generativelanguage.googleapis.com/v1beta/models/' + AI_MODEL + ':generateContent', {
+      method: 'POST',
+      headers: { 'x-goog-api-key': GEMINI_KEY, 'content-type': 'application/json' },
+      body: JSON.stringify({
+        systemInstruction: { parts: [{ text: system }] },
+        contents: [{ role: 'user', parts }],
+        generationConfig: { responseMimeType: 'application/json', maxOutputTokens: 600 }
+      })
+    });
+    const j = await r.json();
+    if (!r.ok) throw new Error((j.error && j.error.message) || ('HTTP ' + r.status));
+    const cand = (j.candidates || [])[0];
+    text = cand && cand.content ? (cand.content.parts || []).map(p => p.text || '').join('') : '';
+  } else {
+    const r = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: { 'x-api-key': ANTHROPIC_KEY, 'anthropic-version': '2023-06-01', 'content-type': 'application/json' },
+      body: JSON.stringify({ model: AI_MODEL, max_tokens: 500, system, messages: [{ role: 'user', content: blocks.map(b => b.type === 'image' ? { type: 'image', source: { type: 'base64', media_type: 'image/jpeg', data: b.source.data } } : b) }] })
+    });
+    const j = await r.json();
+    if (!r.ok) throw new Error((j.error && j.error.message) || ('HTTP ' + r.status));
+    text = (j.content || []).filter(b => b.type === 'text').map(b => b.text).join('');
+  }
   const m = text.match(/\{[\s\S]*\}/);
   if (!m) throw new Error('ИИ вернул не JSON');
   return JSON.parse(m[0]);
@@ -626,7 +651,7 @@ async function processTicket(t) {
     const ctx = 'Пользователь: ' + t.username + '\nБаланс: ' + (u ? u.balance + ' ₽' : 'неизвестно') +
       '\nАктивная поездка: ' + (Object.values(rides).some(r => r.username === t.username) ? 'да' : 'нет') +
       '\nСообщение пользователя:\n<<<\n' + t.message + '\n>>>';
-    const r = await askClaude(SUPPORT_SYSTEM, ctx);
+    const r = await askAI(SUPPORT_SYSTEM, ctx);
     if (r.escalate || !r.reply) {
       t.escalated = true; t.aiNote = String(r.note || 'нужен человек').slice(0, 200);
       logAI('Обращение от ' + t.username + ': передано человеку (' + t.aiNote + ')');
@@ -645,7 +670,7 @@ async function processReview(rv) {
     const zoneTxt = rv.inZone === true ? 'GPS: самокат в зоне официальной парковки «' + rv.zone + '»'
       : rv.inZone === false ? 'GPS: самокат ВНЕ зон официальных парковок'
       : 'GPS: парковки не заданы, зону проверить нельзя';
-    const r = await askClaude(REVIEW_SYSTEM, [
+    const r = await askAI(REVIEW_SYSTEM, [
       { type: 'image', source: { type: 'base64', media_type: 'image/jpeg', data: rv.photo.split(',')[1] } },
       { type: 'text', text: zoneTxt + '\nОцени фото.' }
     ]);
@@ -665,15 +690,15 @@ async function processReview(rv) {
 }
  
 function aiSweep() {
-  if (!aiEnabled || !ANTHROPIC_KEY) return;
+  if (!aiEnabled || !AI_READY) return;
   supportTickets.filter(t => !t.reply && !t.escalated && !t.aiBusy && (t.aiTries || 0) < 2).slice(0, 3).forEach(processTicket);
   Object.values(reviews).filter(r => !r.aiBusy && !r.aiDone && (r.aiTries || 0) < 2).slice(0, 2).forEach(processReview);
 }
 setInterval(aiSweep, 20000);
  
-app.get('/api/admin/ai', (req, res) => res.json({ enabled: aiEnabled, hasKey: !!ANTHROPIC_KEY, model: AI_MODEL, log: aiLog }));
+app.get('/api/admin/ai', (req, res) => res.json({ enabled: aiEnabled, hasKey: AI_READY, model: AI_MODEL, log: aiLog }));
 app.post('/api/admin/ai', (req, res) => {
-  if (req.body.enabled && !ANTHROPIC_KEY) return res.status(400).json({ error: 'Добавьте ANTHROPIC_API_KEY в Render → Environment' });
+  if (req.body.enabled && !AI_READY) return res.status(400).json({ error: 'Добавьте бесплатный GEMINI_API_KEY в Render → Environment' });
   aiEnabled = !!req.body.enabled;
   logAI(aiEnabled ? 'ИИ включён' : 'ИИ выключен');
   if (aiEnabled) aiSweep();
