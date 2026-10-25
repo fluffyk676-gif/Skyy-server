@@ -374,7 +374,7 @@ function saveUser(){ localStorage.setItem('skyy_user', JSON.stringify(user)); }
 function openProfile(){
   $('authForm').style.display = user ? 'none' : 'block';
   $('loggedIn').style.display = user ? 'block' : 'none';
-  if (user) $('userBalance').textContent = user.balance + ' ₽';
+  if (user) $('userBalance').textContent = user.balance + ' ₽'; else $('usernameInput').value = localStorage.getItem('skyy_last') || '';
   openM('profileModal');
 }
 async function auth(kind){
@@ -383,13 +383,17 @@ async function auth(kind){
   try {
     const res = await post('/api/'+kind, {username, password});
     if (res.error) return toast(res.error);
-    user = res.user; saveUser(); openProfile(); checkActiveRide(); loadTickets();
+    user = res.user; saveUser(); localStorage.setItem('skyy_last', username); openProfile(); checkActiveRide(); loadTickets();
   } catch(e){ toast('Сервер недоступен'); }
 }
 function logout(){ user = null; localStorage.removeItem('skyy_user'); closeM('profileModal'); }
 async function refreshUser(){
   if (!user) return;
-  try { const res = await post('/api/login', {username:user.username, password:user.password}); if (res.user) { user = res.user; saveUser(); } } catch(e){}
+  try {
+    const res = await post('/api/login', {username:user.username, password:user.password});
+    if (res.user) { user = res.user; saveUser(); }
+    else if (res.error) { user = null; localStorage.removeItem('skyy_user'); toast('Аккаунт не найден на сервере. Войдите снова'); }
+  } catch(e){}
 }
  
 /* ---------- ПОЕЗДКА ---------- */
@@ -595,7 +599,7 @@ setInterval(async () => {
 }, 5000);
 setInterval(loadScooters, 5000); setInterval(loadParkings, 60000);
 setInterval(loadTickets, 15000);
-loadScooters(); loadParkings(); checkActiveRide(); loadTickets(); placeFab();
+refreshUser(); loadScooters(); loadParkings(); checkActiveRide(); loadTickets(); placeFab();
 </script>
 </body>
 </html>
