@@ -87,11 +87,12 @@ app.post('/api/ring', (req, res) => {
   if (ride && ride.username !== username) return res.status(400).json({ error: 'Самокат занят другим пользователем' });
   if (s.ringUntil && Date.now() < s.ringUntil) return res.status(429).json({ error: 'Самокат уже звонит' });
   s.ringUntil = Date.now() + 10000;
+  s.ringSeq = (s.ringSeq || 0) + 1;
   res.json({ success: true });
 });
 app.get('/api/scooter/:id/ring', (req, res) => {
   const s = scooters[req.params.id];
-  res.json({ ring: !!(s && s.ringUntil && Date.now() < s.ringUntil) });
+  res.json({ ring: !!(s && s.ringUntil && Date.now() < s.ringUntil), seq: s ? (s.ringSeq || 0) : 0 });
 });
  
 // ---------- 2. Аккаунты ----------
@@ -483,46 +484,52 @@ app.get('/tracker.html', (req, res) => {
         localStorage.setItem('skyy_id', ID);
         document.getElementById('idLabel').innerText = 'ID: ' + ID;
  
-        let ctx = null, ringing = false;
+        let audio = null, lastSeq = null;
+        // WAV с пищалкой из видео: синус 4261/4507 Гц, 6 писков по 0,3 с, свист 3500->4700 Гц, цикл 4,64 с
+        function makeWav() {
+          const sr = 44100, n = sr * 10, buf = new Int16Array(n);
+          function add(t0, f1, f2, dur, vol) {
+            const i0 = Math.floor(t0 * sr), len = Math.floor(dur * sr); let ph = 0;
+            for (let i = 0; i < len && i0 + i < n; i++) {
+              const f = f1 + (f2 - f1) * (i / len);
+              ph += 2 * Math.PI * f / sr;
+              const edge = Math.min(1, i / (0.005 * sr), (len - i) / (0.005 * sr));
+              buf[i0 + i] += Math.round(Math.sin(ph) * vol * edge * 32000);
+            }
+          }
+          for (let c = 0; c < 3; c++) {
+            const t0 = c * 4.64;
+            for (let i = 0; i < (c === 2 ? 2 : 6); i++) add(t0 + i * 0.3, i % 2 ? 4507 : 4261, i % 2 ? 4507 : 4261, 0.23, 1);
+            if (c < 2) add(t0 + 2.02, 3500, 4700, 0.38, 0.45);
+          }
+          const bytes = new ArrayBuffer(44 + n * 2), v = new DataView(bytes);
+          const w = (o, str) => { for (let i = 0; i < str.length; i++) v.setUint8(o + i, str.charCodeAt(i)); };
+          w(0, 'RIFF'); v.setUint32(4, 36 + n * 2, true); w(8, 'WAVE'); w(12, 'fmt ');
+          v.setUint32(16, 16, true); v.setUint16(20, 1, true); v.setUint16(22, 1, true);
+          v.setUint32(24, sr, true); v.setUint32(28, sr * 2, true); v.setUint16(32, 2, true); v.setUint16(34, 16, true);
+          w(36, 'data'); v.setUint32(40, n * 2, true);
+          new Int16Array(bytes, 44).set(buf);
+          return URL.createObjectURL(new Blob([bytes], { type: 'audio/wav' }));
+        }
         function enableSound() {
-          ctx = ctx || new (window.AudioContext || window.webkitAudioContext)();
-          ctx.resume(); beep(0.2);
+          audio = new Audio(makeWav()); audio.volume = 1;
+          audio.onended = () => { document.getElementById('ringMsg').innerText = ''; };
+          audio.play().then(() => setTimeout(() => { audio.pause(); audio.currentTime = 0; }, 250)).catch(() => {});
           document.getElementById('sndBtn').style.display = 'none';
           document.getElementById('sndOk').style.display = 'block';
           try { navigator.wakeLock.request('screen'); } catch (e) {}
         }
-        // Звук воспроизводит пищалку из вашего видео: синус 4261 / 4507 Гц, 6 писков по 0,3 с,
-        // затем восходящий «свист» 3500 -> 4700 Гц, пауза, цикл ~4,6 с
-        function tone(t0, f1, f2, dur, vol) {
-          const o = ctx.createOscillator(), g = ctx.createGain();
-          o.type = 'sine';
-          o.frequency.setValueAtTime(f1, t0);
-          if (f2 !== f1) o.frequency.linearRampToValueAtTime(f2, t0 + dur);
-          g.gain.setValueAtTime(0.0001, t0);
-          g.gain.linearRampToValueAtTime(vol, t0 + 0.005);
-          g.gain.setValueAtTime(vol, t0 + dur - 0.01);
-          g.gain.linearRampToValueAtTime(0.0001, t0 + dur);
-          o.connect(g); g.connect(ctx.destination); o.start(t0); o.stop(t0 + dur + 0.02);
-        }
-        function playCycle(t0) {
-          for (let i = 0; i < 6; i++) tone(t0 + i * 0.3, i % 2 ? 4507 : 4261, i % 2 ? 4507 : 4261, 0.23, 1);
-          tone(t0 + 2.02, 3500, 4700, 0.38, 0.45);
-        }
-        function beep(d) { if (ctx) tone(ctx.currentTime, 4261, 4261, d, 0.8); }
         async function checkRing() {
           try {
             const r = await (await fetch(API + '/api/scooter/' + ID + '/ring')).json();
-            if (r.ring && !ringing && ctx) {
-              ringing = true;
-              const t = ctx.currentTime + 0.05;
-              playCycle(t); playCycle(t + 4.64);
+            if (r.ring && audio && r.seq !== lastSeq) {
+              lastSeq = r.seq; audio.currentTime = 0; audio.play();
               document.getElementById('ringMsg').innerText = '🔔 Звонок!';
               if (navigator.vibrate) navigator.vibrate([300, 150, 300, 150, 300, 800, 300, 150, 300, 150, 300]);
-              setTimeout(() => { ringing = false; document.getElementById('ringMsg').innerText = ''; }, 10500);
             }
           } catch (e) {}
         }
-        setInterval(checkRing, 2000);
+        setInterval(checkRing, 1500);
  
         async function getBattery() {
           try { const b = await navigator.getBattery(); return Math.round(b.level * 100); } catch (e) { return 100; }
@@ -548,7 +555,58 @@ app.get('/tracker.html', (req, res) => {
   `);
 });
  
+// ---------- Сохранение данных ----------
+// С Upstash Redis (UPSTASH_REDIS_REST_URL + UPSTASH_REDIS_REST_TOKEN) аккаунты, балансы, поездки,
+// обращения и парковки переживают перезапуск и деплой. Без него данные пишутся в data.json
+// (на бесплатном Render этот файл пропадает при деплое).
+const fs = require('fs');
+const REDIS_URL = process.env.UPSTASH_REDIS_REST_URL, REDIS_TOKEN = process.env.UPSTASH_REDIS_REST_TOKEN;
+const DATA_FILE = path.join(__dirname, 'data.json');
+let canSave = false, lastSaved = '';
+const snapshot = () => JSON.stringify({ users, rides, pendingTopups, supportTickets, finishedNotice, parkings });
+async function redis(cmd) {
+  const r = await fetch(REDIS_URL, { method: 'POST', headers: { Authorization: 'Bearer ' + REDIS_TOKEN, 'Content-Type': 'application/json' }, body: JSON.stringify(cmd) });
+  const j = await r.json();
+  if (j.error) throw new Error(j.error);
+  return j.result;
+}
+function applyState(raw) {
+  const st = JSON.parse(raw);
+  Object.assign(users, st.users || {});
+  Object.assign(rides, st.rides || {});
+  Object.assign(pendingTopups, st.pendingTopups || {});
+  supportTickets.push(...(st.supportTickets || []));
+  Object.assign(finishedNotice, st.finishedNotice || {});
+  if (Array.isArray(st.parkings)) parkings = st.parkings;
+  Object.values(rides).forEach(r => { if (r.review && r.review.status === 'pending') r.review = null; }); // фото не храним
+}
+async function loadState() {
+  for (let i = 0; i < 5; i++) {
+    try {
+      let raw = null;
+      if (REDIS_URL) raw = await redis(['GET', 'skyy_state']);
+      else if (fs.existsSync(DATA_FILE)) raw = fs.readFileSync(DATA_FILE, 'utf8');
+      if (raw) applyState(raw);
+      canSave = true; lastSaved = snapshot(); console.log('State loaded');
+      return;
+    } catch (e) { console.log('Load state failed:', e.message); await new Promise(r => setTimeout(r, 2000)); }
+  }
+  if (REDIS_URL) { console.log('Не удалось загрузить данные из Redis. Выходим, чтобы не затереть их.'); process.exit(1); }
+  canSave = true;
+}
+async function saveState() {
+  if (!canSave) return;
+  const snap = snapshot();
+  if (snap === lastSaved) return;
+  try {
+    if (REDIS_URL) await redis(['SET', 'skyy_state', snap]); else fs.writeFileSync(DATA_FILE, snap);
+    lastSaved = snap;
+  } catch (e) { console.log('Save failed:', e.message); }
+}
+setInterval(saveState, 3000);
+process.on('SIGTERM', async () => { await saveState(); process.exit(0); });
+ 
 // ---------- 8. Клиентское приложение ----------
 app.get('/', (req, res) => res.sendFile(path.join(__dirname, 'index.html')));
  
-app.listen(process.env.PORT || 3000, () => console.log('Server running'));
+loadState().then(() => app.listen(process.env.PORT || 3000, () => console.log('Server running')));
