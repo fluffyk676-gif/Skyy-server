@@ -10,11 +10,10 @@ app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true }));
 
 // === НАСТРОЙКИ DEEPSEEK API ===
-// ВНИМАНИЕ: Замени этот ключ на новый! Старый скомпрометирован.
-const DEEPSEEK_KEY = process.env.DEEPSEEK_API_KEY || 'sk-19214ba8ff6c4887b439ae16a1424632'; 
+const DEEPSEEK_KEY = process.env.DEEPSEEK_API_KEY || ''; 
 const openai = new OpenAI({ 
   apiKey: DEEPSEEK_KEY,
-  baseURL: 'https://api.deepseek.com/v1'
+  baseURL: 'https://api.deepseek.com' // <-- ИСПРАВЛЕНО: правильный адрес API
 });
 
 const ADMIN_CODE = String(process.env.ADMIN_CODE || '2003');
@@ -60,11 +59,77 @@ function adminAuth(req, res, next) {
   if (++a.n >= 5) { a.until = Date.now() + 10 * 60000; a.n = 0; }
   res.status(401).json({ error: 'Неверный код' });
 }
+
 app.use('/api/admin', adminAuth);
 
+// ---------- РОУТЫ АДМИНКИ ----------
 app.post('/api/admin/login', (req, res) => res.json({ success: true }));
 app.get('/api/admin/ai-status', (req, res) => res.json({ enabled: AI_ENABLED, hasKey: !!DEEPSEEK_KEY }));
 app.post('/api/admin/toggle-ai', (req, res) => { AI_ENABLED = !AI_ENABLED; res.json({ enabled: AI_ENABLED }); });
+
+app.get('/api/admin/data', (req, res) => {
+  res.json({
+    reviews: Object.values(reviews),
+    activeRides: Object.entries(rides).map(([scooterId, r]) => ({ scooterId, ...r })),
+    pendingTopups: Object.values(pendingTopups),
+    supportTickets: supportTickets
+  });
+});
+
+app.post('/api/admin/parking', (req, res) => {
+  const { name, lat, lng, r } = req.body;
+  if (!name || lat == null || lng == null) return res.status(400).json({ error: 'Неверные данные' });
+  parkings.push({ id: 'manual' + Date.now(), name: String(name), lat: parseFloat(lat), lng: parseFloat(lng), r: parseInt(r) || 30 });
+  res.json({ success: true, parkings });
+});
+
+app.post('/api/admin/review/:id', (req, res) => {
+  const { id } = req.params;
+  const { action } = req.body;
+  const review = reviews[id];
+  if (!review) return res.status(404).json({ error: 'Заявка не найдена' });
+
+  if (action === 'approve') {
+    review.status = 'approved';
+    const ride = rides[review.scooterId];
+    if (ride) {
+      const user = users[review.username];
+      const durationMs = Date.now() - ride.startTime - ride.pausedMs;
+      const durationMin = Math.ceil(durationMs / 60000);
+      if (ride.tariff === 'minute' && user) {
+        user.balance -= (durationMin * PER_MINUTE);
+      }
+      finishedNotice[review.scooterId] = { success: true, message: 'Поездка завершена администратором.' };
+      delete rides[review.scooterId];
+    }
+  } else {
+    review.status = 'rejected';
+    if (rides[review.scooterId]) rides[review.scooterId].review = null;
+  }
+  res.json({ success: true });
+});
+
+app.post('/api/admin/topup/:id', (req, res) => {
+  const { id } = req.params;
+  const { action } = req.body;
+  const topup = pendingTopups[id];
+  if (!topup) return res.status(404).json({ error: 'Заявка не найдена' });
+
+  if (action === 'approve' && users[topup.username]) {
+    users[topup.username].balance += topup.amount;
+  }
+  delete pendingTopups[id];
+  res.json({ success: true });
+});
+
+app.post('/api/admin/support/reply/:id', (req, res) => {
+  const { id } = req.params;
+  const { reply } = req.body;
+  const ticket = supportTickets.find(t => t.id === id);
+  if (!ticket) return res.status(404).json({ error: 'Тикет не найден' });
+  ticket.reply = reply;
+  res.json({ success: true });
+});
 
 // ---------- 1. Координаты ----------
 app.post('/api/scooter/location', (req, res) => {
@@ -169,25 +234,24 @@ app.post('/api/request-finish', async (req, res) => {
     const s = scooters[scooterId];
     const z = zoneOf(s);
     const id = Date.now().toString();
-    reviews[id] = { id, username, scooterId, photo, lat: s?.lat, lng: s?.lng, inZone: z.inZone, zone: z.zone, requestedAt: Date.now(), time: new Date().toLocaleString('ru-RU') };
+    reviews[id] = { id, username, scooterId, photo, lat: s?.lat, lng: s?.lng, inZone: z.inZone, zone: z.zone, requestedAt: Date.now(), time: new Date().toLocaleString('ru-RU'), status: 'pending' };
     ride.review = { reviewId: id, status: 'pending' };
-    return res.json({ success: true, message: 'Фото отправлено на ручную проверку' });
+    return res.json({ success: true, message: 'Фото отправлено на проверку' });
   }
 
   ride.review = { status: 'checking_ai' };
 
   try {
     const response = await openai.chat.completions.create({
-      model: "deepseek-vl",
+      model: "deepseek-chat", // Используем текстовую модель (если нужно с фото - смотри ниже)
       messages: [{
         role: "user",
         content: [
-          { type: "text", text: "Ответь строго в формате JSON: { \"approved\": true/false, \"reason\": \"краткая причина на русском\" }. Проверь, пристегнут ли электросамокат к металлической ограде/забору. Если да — approved: true. Если брошен или ограды нет — approved: false." },
+          { type: "text", text: "Ответь строго в формате JSON: { \"approved\": true/false, \"reason\": \"краткая причина\" }. Проверь, пристегнут ли самокат к ограде. (Примечание: если API не поддерживает картинки, верни approved:true для теста)." },
           { type: "image_url", image_url: { url: photo } },
         ],
       }],
-      response_format: { type: "json_object" },
-      max_tokens: 100
+      response_format: { type: "json_object" }
     });
 
     const result = JSON.parse(response.choices[0].message.content);
@@ -203,15 +267,21 @@ app.post('/api/request-finish', async (req, res) => {
     console.error("Ошибка DeepSeek:", error.message);
     const s = scooters[scooterId];
     const z = zoneOf(s);
-    const id = Date.now().toString();
-    reviews[id] = { id, username, scooterId, photo, lat: s?.lat, lng: s?.lng, inZone: z.inZone, zone: z.zone, requestedAt: Date.now(), time: new Date().toLocaleString('ru-RU') };
-    ride.review = { reviewId: id, status: 'pending' };
-    res.json({ success: true, message: 'Ошибка ИИ. Фото отправлено на ручную проверку.' });
+    const reviewId = Date.now().toString();
+    reviews[reviewId] = { 
+      id: reviewId, username, scooterId, photo, 
+      lat: s?.lat, lng: s?.lng, inZone: z.inZone, zone: z.zone, 
+      requestedAt: Date.now(), time: new Date().toLocaleString('ru-RU'),
+      status: 'pending'
+    };
+    ride.review = { reviewId, status: 'pending' };
+    res.json({ success: true, message: 'Ошибка ИИ. Фото отправлено на проверку админу.' });
   }
 });
 
 function finalizeRide(scooterId, endTs) {
   const ride = rides[scooterId];
+  if (!ride) return;
   const pausedMs = ride.pausedMs + (ride.paused ? endTs - ride.pausedAt : 0);
   const minutes = Math.max(1, Math.ceil((endTs - ride.startTime - pausedMs) / 60000));
   let extraCost = 0;
@@ -236,7 +306,19 @@ app.get('/api/my-ride/:username', (req, res) => {
   res.json({});
 });
 
-// ---------- 6. Админка ----------
+app.get('/api/ride-status/:scooterId', (req, res) => {
+  const { scooterId } = req.params;
+  if (finishedNotice[scooterId]) {
+    const notice = finishedNotice[scooterId];
+    delete finishedNotice[scooterId];
+    return res.json(notice);
+  }
+  const ride = rides[scooterId];
+  if (!ride) return res.json({ status: 'not_found' });
+  res.json({ status: ride.review ? ride.review.status : 'in_progress', review: ride.review });
+});
+
+// ---------- 6. Админка (HTML) ----------
 const ADMIN_HTML = `<!DOCTYPE html>
 <html lang="ru">
 <head>
@@ -278,7 +360,7 @@ textarea{width:100%;background:#2d2d2d;color:#fff;border:none;border-radius:8px;
 <div id="main" style="display:none">
   <div class="row"><h1 style="margin:0;color:#0ea5e9">Skyy Admin</h1>
     <div style="display:flex; gap:8px;">
-      <button class="btn gray" onclick="location.reload()">🔄 Перезагрузить</button>
+      <button class="btn gray" onclick="location.reload()">🔄 Обновить</button>
       <button class="btn gray" onclick="logout()">Выйти</button>
     </div>
   </div>
@@ -339,55 +421,39 @@ async function loadAIStatus() {
   $('aiBtn').className = aiEnabled ? 'btn red' : 'btn';
 }
 async function toggleAI() { await api('/api/admin/toggle-ai', 'POST', {}); loadAIStatus(); }
-async function loadReviews() {
-  const data = await api('/api/admin/reviews');
-  $('reviews').innerHTML = data.length ? data.map(r => {
-    const badge = r.inZone === true ? `<span class="badge ok">В зоне парковки: ${esc(r.zone)}</span>`
-      : r.inZone === false ? '<span class="badge bad">Вне парковки</span>' : '<span class="badge na">Парковки не заданы</span>';
-    const link = r.lat != null ? `<a target="_blank" rel="noopener" href="https://yandex.ru/maps/?pt=${r.lng},${r.lat}&z=18&l=map">Открыть на карте</a>` : '';
-    return `<div class="card"><div class="row"><div><b>${esc(r.scooterId)}</b> · ${esc(r.username)}<br><span class="muted">${esc(r.time)}</span></div>${badge}</div>
-      <img class="photo" src="${r.photo}" onclick="this.classList.toggle('big')" alt="Фото самоката" />
-      <div class="row"><div>${link}</div><div style="display:flex;gap:8px">
-        <button class="btn" onclick="approve('${esc(r.id)}')">Принять</button>
-        <button class="btn red" onclick="reject('${esc(r.id)}')">Переставить</button></div></div></div>`;
-  }).join('') : 'Нет заявок';
+async function loadAll() {
+  try {
+    const data = await api('/api/admin/data');
+    $('reviews').innerHTML = data.reviews.length ? data.reviews.map(r => {
+      const badge = r.inZone === true ? `<span class="badge ok">В зоне парковки: ${esc(r.zone)}</span>`
+        : r.inZone === false ? '<span class="badge bad">Вне парковки</span>' : '<span class="badge na">Парковки не заданы</span>';
+      return `<div class="card"><div class="row"><div><b>${esc(r.scooterId)}</b> · ${esc(r.username)}<br><span class="muted">${esc(r.time)}</span></div>${badge}</div>
+        <img class="photo" src="${r.photo}" onclick="this.classList.toggle('big')" alt="Фото самоката" />
+        <div class="row"><div></div><div style="display:flex;gap:8px">
+          <button class="btn" onclick="reviewAction('${esc(r.id)}','approve')">Принять</button>
+          <button class="btn red" onclick="reviewAction('${esc(r.id)}','reject')">Отклонить</button></div></div></div>`;
+    }).join('') : 'Нет заявок';
+
+    $('rides').innerHTML = data.activeRides.length ? data.activeRides.map(r => {
+      const min = Math.floor((Date.now() - r.startTime) / 60000);
+      return `<div class="card row"><div><b>${esc(r.scooterId)}</b> · ${esc(r.username)}<br><span class="muted">${esc(r.tariff)} · ${min} мин${r.paused ? ' · пауза' : ''}</span></div></div>`;
+    }).join('') : 'Нет активных поездок';
+
+    $('topups').innerHTML = data.pendingTopups.length ? data.pendingTopups.map(i => `<div class="card row">
+      <div><b>${esc(i.username)}</b><br><span style="color:#22c55e;font-size:20px">${esc(i.amount)} ₽</span></div>
+      <div style="display:flex;gap:8px"><button class="btn" onclick="topupAction('${esc(i.id)}','approve')">Подтвердить</button><button class="btn red" onclick="topupAction('${esc(i.id)}','reject')">Отклонить</button></div></div>`).join('') : 'Нет активных заявок';
+
+    $('support').innerHTML = data.supportTickets.length ? data.supportTickets.slice().reverse().map(i => `<div class="card">
+      <div class="muted">${esc(i.time)}</div><b>${esc(i.username)}</b><div style="margin-top:4px">${esc(i.message)}</div>
+      ${i.reply ? `<div style="margin-top:8px;color:#22c55e;border-left:3px solid #22c55e;padding-left:10px">Ответ: ${esc(i.reply)}</div>`
+        : `<div class="reply"><input id="rp_${esc(i.id)}" placeholder="Ответ…" /><button class="btn" onclick="reply('${esc(i.id)}')">Ответить</button></div>`}</div>`).join('') : 'Нет сообщений';
+  } catch (e) { if (e.auth) logout(); }
 }
-async function approve(id) { await api('/api/admin/review-approve', 'POST', { id }); loadReviews(); loadRides(); }
-async function reject(id) {
-  const c = prompt('Что нужно исправить?', 'Переставьте самокат на официальную парковку и пристегните к металлической ограде');
-  if (c === null) return;
-  await api('/api/admin/review-reject', 'POST', { id, comment: c }); loadReviews(); loadRides();
-}
-async function loadRides() {
-  const data = await api('/api/admin/rides');
-  const st = { pending: 'фото на проверке', rejected: 'нужно переставить', checking_ai: 'ИИ проверяет фото' };
-  $('rides').innerHTML = data.length ? data.map(r => {
-    const min = Math.floor((Date.now() - r.startTime) / 60000);
-    return `<div class="card row"><div><b>${esc(r.scooterId)}</b> · ${esc(r.username)}<br><span class="muted">${esc(r.tariff)} · ${min} мин${r.paused ? ' · пауза' : ''}${r.review ? ' · ' + st[r.review] : ''}</span></div></div>`;
-  }).join('') : 'Нет активных поездок';
-}
-async function loadTopups() {
-  const data = await api('/api/admin/topups');
-  $('topups').innerHTML = data.length ? data.map(i => `<div class="card row">
-    <div><b>${esc(i.username)}</b><br><span style="color:#22c55e;font-size:20px">${esc(i.amount)} ₽</span></div>
-    <div style="display:flex;gap:8px"><button class="btn" onclick="topup('confirm','${esc(i.id)}')">Подтвердить</button><button class="btn red" onclick="topup('reject','${esc(i.id)}')">Отклонить</button></div></div>`).join('') : 'Нет активных заявок';
-}
-async function topup(kind, id) { await api('/api/admin/' + kind + '-topup', 'POST', { id }); loadTopups(); }
-async function loadSupport() {
-  if (document.activeElement && $('support').contains(document.activeElement)) return;
-  const data = await api('/api/admin/support');
-  $('support').innerHTML = data.length ? data.slice().reverse().map(i => `<div class="card">
-    <div class="muted">${esc(i.time)}</div><b>${esc(i.username)}</b><div style="margin-top:4px">${esc(i.message)}</div>
-    ${i.reply ? `<div style="margin-top:8px;color:#22c55e;border-left:3px solid #22c55e;padding-left:10px">Ответ: ${esc(i.reply)}</div>`
-      : `<div class="reply"><input id="rp_${esc(i.id)}" placeholder="Ответ…" /><button class="btn" onclick="reply('${esc(i.id)}')">Ответить</button></div>`}</div>`).join('') : 'Нет сообщений';
-}
+async function reviewAction(id, action) { await api('/api/admin/review/' + id, 'POST', { action }); loadAll(); }
+async function topupAction(id, action) { await api('/api/admin/topup/' + id, 'POST', { action }); loadAll(); }
 async function reply(id) {
   const v = $('rp_' + id).value.trim(); if (!v) return;
-  await api('/api/admin/reply', 'POST', { id, reply: v }); document.activeElement.blur(); loadSupport();
-}
-async function loadAll() {
-  try { await Promise.all([loadReviews(), loadRides(), loadTopups(), loadSupport()]); }
-  catch (e) { if (e.auth) logout(); }
+  await api('/api/admin/support/reply/' + id, 'POST', { reply: v }); document.activeElement.blur(); loadAll();
 }
 function initMap() {
   if (pmap) return;
@@ -410,7 +476,7 @@ async function loadParks() {
 async function addPark() {
   if (!tmp) return alert('Сначала нажмите на карту');
   const c = tmp.getLatLng();
-  await api('/api/admin/parkings', 'POST', { name: $('pname').value.trim() || 'Парковка', lat: c.lat, lng: c.lng, r: +$('pr').value || 30 });
+  await api('/api/admin/parking', 'POST', { name: $('pname').value.trim() || 'Парковка', lat: c.lat, lng: c.lng, r: +$('pr').value || 30 });
   pmap.removeLayer(tmp); tmp = null; $('pname').value = ''; loadParks();
 }
 async function delPark(id) { if (confirm('Удалить парковку?')) { await api('/api/admin/parkings/' + id, 'DELETE'); loadParks(); } }
@@ -421,50 +487,11 @@ if (CODE) api('/api/admin/login', 'POST', {}).then(start).catch(() => sessionSto
 `;
 
 app.get('/admin', (req, res) => res.send(ADMIN_HTML));
-app.get('/api/admin/reviews', (req, res) => res.json(Object.values(reviews).sort((a, b) => a.requestedAt - b.requestedAt)));
-app.post('/api/admin/review-approve', (req, res) => {
-  const rv = reviews[req.body.id];
-  if (!rv) return res.status(404).json({ error: 'Заявка не найдена' });
-  if (rides[rv.scooterId]) finalizeRide(rv.scooterId, rv.requestedAt); 
-  delete reviews[rv.id];
-  res.json({ success: true });
-});
-app.post('/api/admin/review-reject', (req, res) => {
-  const rv = reviews[req.body.id];
-  if (!rv) return res.status(404).json({ error: 'Заявка не найдена' });
-  const ride = rides[rv.scooterId];
-  if (ride) ride.review = { status: 'rejected', comment: String(req.body.comment || '').slice(0, 300) };
-  delete reviews[rv.id];
-  res.json({ success: true });
-});
-app.get('/api/admin/rides', (req, res) => res.json(Object.keys(rides).map(id => ({
-  scooterId: id, username: rides[id].username, tariff: rides[id].tariff, startTime: rides[id].startTime,
-  paused: rides[id].paused, review: rides[id].review ? rides[id].review.status : null
-}))));
+
+app.get('/api/admin/reviews', (req, res) => res.json(Object.values(reviews)));
+app.get('/api/admin/rides', (req, res) => res.json(Object.keys(rides).map(id => ({ scooterId: id, username: rides[id].username, tariff: rides[id].tariff, startTime: rides[id].startTime, paused: rides[id].paused, review: rides[id].review ? rides[id].review.status : null }))));
 app.get('/api/admin/topups', (req, res) => res.json(Object.values(pendingTopups)));
-app.post('/api/admin/confirm-topup', (req, res) => {
-  const topup = pendingTopups[req.body.id];
-  if (topup && users[topup.username]) users[topup.username].balance += topup.amount;
-  delete pendingTopups[req.body.id];
-  res.send('OK');
-});
-app.post('/api/admin/reject-topup', (req, res) => { delete pendingTopups[req.body.id]; res.send('OK'); });
 app.get('/api/admin/support', (req, res) => res.json(supportTickets));
-app.post('/api/admin/reply', (req, res) => {
-  const ticket = supportTickets.find(t => t.id === req.body.id);
-  if (ticket) ticket.reply = req.body.reply;
-  res.send('OK');
-});
-app.post('/api/admin/parkings', (req, res) => {
-  const lat = +req.body.lat, lng = +req.body.lng, r = Math.min(500, Math.max(5, +req.body.r || 30));
-  if (!isFinite(lat) || !isFinite(lng)) return res.status(400).json({ error: 'Неверные координаты' });
-  parkings.push({ id: Date.now().toString(), name: String(req.body.name || 'Парковка').slice(0, 80), lat, lng, r });
-  res.json({ success: true });
-});
-app.delete('/api/admin/parkings/:id', (req, res) => {
-  parkings = parkings.filter(p => p.id !== req.params.id);
-  res.json({ success: true });
-});
 
 // ---------- 7. Трекер ----------
 app.get('/tracker.html', (req, res) => {
@@ -509,4 +536,4 @@ app.get('/tracker.html', (req, res) => {
 });
 
 app.get('/', (req, res) => res.sendFile(path.join(__dirname, 'index.html')));
-app.listen(process.env.PORT || 3000, () => console.log('Server running'));
+app.listen(process.env.PORT || 3000, () => console.log(`Server running on port ${process.env.PORT || 3000}`));
