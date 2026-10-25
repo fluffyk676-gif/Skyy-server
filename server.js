@@ -491,22 +491,34 @@ app.get('/tracker.html', (req, res) => {
           document.getElementById('sndOk').style.display = 'block';
           try { navigator.wakeLock.request('screen'); } catch (e) {}
         }
-        function beep(d) {
-          if (!ctx) return;
+        // Звук воспроизводит пищалку из вашего видео: синус 4261 / 4507 Гц, 6 писков по 0,3 с,
+        // затем восходящий «свист» 3500 -> 4700 Гц, пауза, цикл ~4,6 с
+        function tone(t0, f1, f2, dur, vol) {
           const o = ctx.createOscillator(), g = ctx.createGain();
-          o.type = 'square'; o.frequency.value = 1800; g.gain.value = 0.6;
-          o.connect(g); g.connect(ctx.destination); o.start(); o.stop(ctx.currentTime + d);
+          o.type = 'sine';
+          o.frequency.setValueAtTime(f1, t0);
+          if (f2 !== f1) o.frequency.linearRampToValueAtTime(f2, t0 + dur);
+          g.gain.setValueAtTime(0.0001, t0);
+          g.gain.linearRampToValueAtTime(vol, t0 + 0.005);
+          g.gain.setValueAtTime(vol, t0 + dur - 0.01);
+          g.gain.linearRampToValueAtTime(0.0001, t0 + dur);
+          o.connect(g); g.connect(ctx.destination); o.start(t0); o.stop(t0 + dur + 0.02);
         }
+        function playCycle(t0) {
+          for (let i = 0; i < 6; i++) tone(t0 + i * 0.3, i % 2 ? 4507 : 4261, i % 2 ? 4507 : 4261, 0.23, 1);
+          tone(t0 + 2.02, 3500, 4700, 0.38, 0.45);
+        }
+        function beep(d) { if (ctx) tone(ctx.currentTime, 4261, 4261, d, 0.8); }
         async function checkRing() {
           try {
             const r = await (await fetch(API + '/api/scooter/' + ID + '/ring')).json();
-            if (r.ring && !ringing) {
-              ringing = true; let n = 0;
+            if (r.ring && !ringing && ctx) {
+              ringing = true;
+              const t = ctx.currentTime + 0.05;
+              playCycle(t); playCycle(t + 4.64);
               document.getElementById('ringMsg').innerText = '🔔 Звонок!';
-              const iv = setInterval(() => {
-                beep(0.25); if (navigator.vibrate) navigator.vibrate(200);
-                if (++n >= 12) { clearInterval(iv); ringing = false; document.getElementById('ringMsg').innerText = ''; }
-              }, 700);
+              if (navigator.vibrate) navigator.vibrate([300, 150, 300, 150, 300, 800, 300, 150, 300, 150, 300]);
+              setTimeout(() => { ringing = false; document.getElementById('ringMsg').innerText = ''; }, 10500);
             }
           } catch (e) {}
         }
