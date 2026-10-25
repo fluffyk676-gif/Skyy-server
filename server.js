@@ -9,15 +9,15 @@ app.use(cors());
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true }));
 
-// === НАСТРОЙКИ DEEPSEEK API ===
-const DEEPSEEK_KEY = process.env.DEEPSEEK_API_KEY || 'sk-19214ba8ff6c4887b439ae16a1424632'; 
+// Ключ берется из настроек Render (Environment -> DEEPSEEK_API_KEY)
+const DEEPSEEK_KEY = process.env.DEEPSEEK_API_KEY || ''; 
 const openai = new OpenAI({ 
   apiKey: DEEPSEEK_KEY,
-  baseURL: 'https://api.deepseek.com'
+  baseURL: 'https://api.deepseek.com' 
 });
 
 const ADMIN_CODE = String(process.env.ADMIN_CODE || '2003');
-let AI_ENABLED = true;
+let AI_ENABLED = true; // По умолчанию ИИ "включен", но проверять будет только текст
 
 const scooters = {};
 const users = {};
@@ -44,6 +44,7 @@ function distM(a, b) {
   const x = Math.sin(dLa / 2) ** 2 + Math.cos(a.lat * r) * Math.cos(b.lat * r) * Math.sin(dLo / 2) ** 2;
   return 2 * R * Math.asin(Math.sqrt(x));
 }
+
 function zoneOf(s) {
   if (!parkings.length) return { inZone: null, zone: null };
   if (!s || s.lat == null) return { inZone: null, zone: null };
@@ -62,7 +63,7 @@ function adminAuth(req, res, next) {
 
 app.use('/api/admin', adminAuth);
 
-// ---------- РОУТЫ АДМИНКИ ----------
+// ---------- АДМИНКА ----------
 app.post('/api/admin/login', (req, res) => res.json({ success: true }));
 app.get('/api/admin/ai-status', (req, res) => res.json({ enabled: AI_ENABLED, hasKey: !!DEEPSEEK_KEY }));
 app.post('/api/admin/toggle-ai', (req, res) => { AI_ENABLED = !AI_ENABLED; res.json({ enabled: AI_ENABLED }); });
@@ -126,7 +127,7 @@ app.post('/api/admin/support/reply/:id', (req, res) => {
   res.json({ success: true });
 });
 
-// ---------- 1. Координаты ----------
+// ---------- КООРДИНАТЫ ----------
 app.post('/api/scooter/location', (req, res) => {
   const { id, lat, lon, battery } = req.body;
   if (id && lat && lon) {
@@ -155,7 +156,7 @@ app.get('/api/scooters', (req, res) => {
 
 app.get('/api/parkings', (req, res) => res.json(parkings));
 
-// ---------- 2. Аккаунты ----------
+// ---------- АККАУНТЫ ----------
 app.post('/api/register', (req, res) => {
   const username = String(req.body.username || '').trim();
   const password = String(req.body.password || '');
@@ -172,14 +173,14 @@ app.post('/api/login', (req, res) => {
   res.json({ success: true, user });
 });
 
-// ---------- 3. Поддержка ----------
+// ---------- ПОДДЕРЖКА ----------
 app.post('/api/support', (req, res) => {
   supportTickets.push({ id: Date.now().toString(), username: req.body.username, message: req.body.message, reply: null, time: new Date().toLocaleString('ru-RU') });
   res.json({ success: true });
 });
 app.get('/api/support/:username', (req, res) => res.json(supportTickets.filter(t => t.username === req.params.username)));
 
-// ---------- 4. Пополнение ----------
+// ---------- ПОПОЛНЕНИЕ ----------
 app.post('/api/request-topup', (req, res) => {
   const amount = parseInt(req.body.amount);
   if (!users[req.body.username] || !amount || amount < 30) return res.status(400).json({ error: 'Неверные данные' });
@@ -188,7 +189,7 @@ app.post('/api/request-topup', (req, res) => {
   res.json({ success: true });
 });
 
-// ---------- 5. Поездки ----------
+// ---------- ПОЕЗДКИ ----------
 app.post('/api/start-ride', (req, res) => {
   const { username, scooterId, tariff } = req.body;
   const user = users[username];
@@ -217,60 +218,26 @@ app.post('/api/toggle-pause', (req, res) => {
   res.json({ success: true, isPaused: ride.paused, pausedAt: ride.pausedAt, pausedMs: ride.pausedMs });
 });
 
-// === ЗАВЕРШЕНИЕ С ПРОВЕРКОЙ DEEPSEEK ===
+// === ЗАВЕРШЕНИЕ (БЕЗ ОТПРАВКИ ФОТО В ИИ, ЧТОБЫ НЕ ПАДАЛО) ===
 app.post('/api/request-finish', async (req, res) => {
   const { username, scooterId, photo } = req.body;
   const ride = rides[scooterId];
   if (!ride || ride.username !== username) return res.status(400).json({ error: 'Поездка не найдена' });
-  if (typeof photo !== 'string' || !photo.startsWith('data:image/jpeg;base64,'))
-    return res.status(400).json({ error: 'Нужно фото самоката у ограды' });
-
-  if (!AI_ENABLED || !DEEPSEEK_KEY) {
-    const s = scooters[scooterId];
-    const z = zoneOf(s);
-    const id = Date.now().toString();
-    reviews[id] = { id, username, scooterId, photo, lat: s?.lat, lng: s?.lng, inZone: z.inZone, zone: z.zone, requestedAt: Date.now(), time: new Date().toLocaleString('ru-RU'), status: 'pending' };
-    ride.review = { reviewId: id, status: 'pending' };
-    return res.json({ success: true, message: 'Фото отправлено на проверку' });
-  }
-
-  ride.review = { status: 'checking_ai' };
-
-  try {
-    // ВНИМАНИЕ: DeepSeek пока не поддерживает картинки в API (deepseek-vl в разработке)
-    // Если запрос с картинкой упадет, мы отправим фото в ручную проверку
-    const response = await openai.chat.completions.create({
-      model: "deepseek-chat", 
-      messages: [{
-        role: "user",
-        content: "Ответь строго в формате JSON: { \"approved\": true, \"reason\": \"тест\" }."
-      }],
-      response_format: { type: "json_object" }
-    });
-
-    const result = JSON.parse(response.choices[0].message.content);
-    
-    if (result.approved) {
-      finalizeRide(scooterId, Date.now());
-      return res.json({ success: true, autoApproved: true, message: result.reason });
-    } else {
-      ride.review = { status: 'rejected', comment: result.reason };
-      return res.status(400).json({ error: `ИИ отклонил фото: ${result.reason}` });
-    }
-  } catch (error) {
-    console.error("Ошибка DeepSeek:", error.message);
-    const s = scooters[scooterId];
-    const z = zoneOf(s);
-    const reviewId = Date.now().toString();
-    reviews[reviewId] = { 
-      id: reviewId, username, scooterId, photo, 
-      lat: s?.lat, lng: s?.lng, inZone: z.inZone, zone: z.zone, 
-      requestedAt: Date.now(), time: new Date().toLocaleString('ru-RU'),
-      status: 'pending'
-    };
-    ride.review = { reviewId, status: 'pending' };
-    res.json({ success: true, message: 'Ошибка ИИ. Фото отправлено на проверку админу.' });
-  }
+  
+  // Сразу отправляем на ручную проверку, чтобы сервер не крашился из-за DeepSeek
+  const s = scooters[scooterId];
+  const z = zoneOf(s);
+  const id = Date.now().toString();
+  
+  reviews[id] = { 
+    id, username, scooterId, photo, 
+    lat: s?.lat, lng: s?.lng, inZone: z.inZone, zone: z.zone, 
+    requestedAt: Date.now(), time: new Date().toLocaleString('ru-RU'), 
+    status: 'pending' 
+  };
+  
+  ride.review = { reviewId: id, status: 'pending' };
+  res.json({ success: true, message: 'Фото отправлено на проверку' });
 });
 
 function finalizeRide(scooterId, endTs) {
@@ -312,7 +279,7 @@ app.get('/api/ride-status/:scooterId', (req, res) => {
   res.json({ status: ride.review ? ride.review.status : 'in_progress', review: ride.review });
 });
 
-// ---------- 6. Админка (HTML) ----------
+// ---------- 6. Админка ----------
 const ADMIN_HTML = `<!DOCTYPE html>
 <html lang="ru">
 <head>
