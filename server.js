@@ -561,7 +561,10 @@ app.get('/tracker.html', (req, res) => {
 // (на бесплатном Render этот файл пропадает при деплое).
 const fs = require('fs');
 const REDIS_URL = process.env.UPSTASH_REDIS_REST_URL, REDIS_TOKEN = process.env.UPSTASH_REDIS_REST_TOKEN;
-const DATA_FILE = path.join(__dirname, 'data.json');
+const DATA_DIR = process.env.DATA_DIR || path.join(__dirname, 'data'); // папка с данными (на Render с диском: DATA_DIR=/data)
+const DATA_FILE = path.join(DATA_DIR, 'data.json');
+try { fs.mkdirSync(DATA_DIR, { recursive: true }); } catch (e) {}
+let useRedis = !!(REDIS_URL && REDIS_TOKEN);
 let canSave = false, lastSaved = '';
 const snapshot = () => JSON.stringify({ users, rides, pendingTopups, supportTickets, finishedNotice, parkings });
 async function redis(cmd) {
@@ -584,22 +587,27 @@ async function loadState() {
   for (let i = 0; i < 5; i++) {
     try {
       let raw = null;
-      if (REDIS_URL) raw = await redis(['GET', 'skyy_state']);
+      if (useRedis) raw = await redis(['GET', 'skyy_state']);
       else if (fs.existsSync(DATA_FILE)) raw = fs.readFileSync(DATA_FILE, 'utf8');
       if (raw) applyState(raw);
       canSave = true; lastSaved = snapshot(); console.log('State loaded');
       return;
     } catch (e) { console.log('Load state failed:', e.message); await new Promise(r => setTimeout(r, 2000)); }
   }
-  if (REDIS_URL) { console.log('Не удалось загрузить данные из Redis. Выходим, чтобы не затереть их.'); process.exit(1); }
-  canSave = true;
+  if (useRedis) {
+    // Redis недоступен (неверный токен и т.п.): не падаем, работаем с файлом в папке data/
+    console.log('Redis недоступен, переходим на сохранение в файл ' + DATA_FILE);
+    useRedis = false;
+    try { if (fs.existsSync(DATA_FILE)) applyState(fs.readFileSync(DATA_FILE, 'utf8')); } catch (e) {}
+  }
+  canSave = true; lastSaved = snapshot();
 }
 async function saveState() {
   if (!canSave) return;
   const snap = snapshot();
   if (snap === lastSaved) return;
   try {
-    if (REDIS_URL) await redis(['SET', 'skyy_state', snap]); else fs.writeFileSync(DATA_FILE, snap);
+    if (useRedis) await redis(['SET', 'skyy_state', snap]); else fs.writeFileSync(DATA_FILE, snap);
     lastSaved = snap;
   } catch (e) { console.log('Save failed:', e.message); }
 }
