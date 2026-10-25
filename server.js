@@ -492,4 +492,42 @@ app.get('/tracker.html', (req, res) => {
   res.send(`
     <!DOCTYPE html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"></head>
     <body style="text-align:center;padding-top:50px;font-family:sans-serif;">
-      <h2 style="color:#0ea5e9;">Skyy Tra
+      <h2 style="color:#0ea5e9;">Skyy Tracker</h2>
+      <p id="gpsStatus" style="font-size:20px;font-weight:bold;color:#f59e0b;">Ожидание GPS...</p>
+      <p id="idLabel" style="color:#888;"></p>
+      <script>
+        const API = location.origin;
+        let ID = localStorage.getItem('skyy_id') || 'Skyy-' + Math.floor(1000 + Math.random() * 9000);
+        localStorage.setItem('skyy_id', ID);
+        document.getElementById('idLabel').innerText = 'ID: ' + ID;
+        async function getBattery() {
+          try { const b = await navigator.getBattery(); return Math.round(b.level * 100); } catch (e) { return 100; }
+        }
+        async function sendLocation() {
+          const battery = await getBattery();
+          navigator.geolocation.getCurrentPosition((pos) => {
+            document.getElementById('gpsStatus').innerText = 'GPS OK: ' + pos.coords.latitude.toFixed(5);
+            document.getElementById('gpsStatus').style.color = '#22c55e';
+            fetch(API + '/api/scooter/location', {
+              method: 'POST',
+              headers: {'Content-Type': 'application/x-www-form-urlencoded'},
+              body: 'id=' + ID + '&lat=' + pos.coords.latitude + '&lon=' + pos.coords.longitude + '&battery=' + battery
+            });
+          }, () => {
+            document.getElementById('gpsStatus').innerText = 'Нет доступа к GPS';
+            document.getElementById('gpsStatus').style.color = '#ef4444';
+          }, { enableHighAccuracy: true });
+        }
+        setInterval(sendLocation, 5000); sendLocation();
+        setInterval(() => {
+          fetch(API + '/api/scooter/' + ID + '/command')
+            .then(r => r.text())
+            .then(cmd => { if (cmd === 'CALL') alert('🔔 СИРЕНА!'); });
+        }, 3000);
+      </script>
+    </body></html>
+  `);
+});
+
+app.get('/', (req, res) => res.sendFile(path.join(__dirname, 'index.html')));
+app.listen(process.env.PORT || 3000, () => console.log(`Server running on port ${process.env.PORT || 3000}`));
