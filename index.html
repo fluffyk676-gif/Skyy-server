@@ -8,8 +8,8 @@
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.css" />
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.js"></script>
 <style>
-:root{--bg:#f3f4f6;--card:#fff;--card2:#eceef2;--text:#14161a;--muted:#6b7280;--line:#e2e5ea;--accent:#ff5a1f;--green:#16a34a;--red:#ef4444;--blue:#3b82f6;--shadow:0 6px 24px rgba(0,0,0,.14)}
-:root[data-theme=dark]{--bg:#101114;--card:#1b1d22;--card2:#272a31;--text:#f4f5f7;--muted:#8d93a0;--line:#2c2f37;--green:#22c55e;--shadow:0 6px 24px rgba(0,0,0,.5)}
+:root{--bg:#f3f4f6;--card:#fff;--card2:#eceef2;--text:#14161a;--muted:#6b7280;--line:#e2e5ea;--accent:#2563eb;--park:#14b8a6;--green:#16a34a;--red:#ef4444;--blue:#3b82f6;--shadow:0 6px 24px rgba(0,0,0,.14)}
+:root[data-theme=dark]{--accent:#3b82f6;--bg:#101114;--card:#1b1d22;--card2:#272a31;--text:#f4f5f7;--muted:#8d93a0;--line:#2c2f37;--green:#22c55e;--shadow:0 6px 24px rgba(0,0,0,.5)}
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
 html,body{margin:0;height:100%;overflow:hidden;background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;transition:background .3s,color .3s}
 #app{position:relative;height:100dvh;max-width:480px;margin:0 auto;overflow:hidden}
@@ -23,7 +23,6 @@ html,body{margin:0;height:100%;overflow:hidden;background:var(--bg);color:var(--
 .search{flex:1;position:relative;min-width:0}
 .search svg{position:absolute;left:12px;top:11px;width:20px;height:20px;color:var(--muted)}
 .search input{width:100%;height:44px;border:none;outline:none;border-radius:14px;background:var(--card);color:var(--text);padding:0 12px 0 40px;font-size:15px;box-shadow:var(--shadow);margin:0}
-.fab{position:absolute;right:12px;z-index:400;transition:bottom .35s cubic-bezier(.2,.8,.2,1)}
 .sheet{position:absolute;left:0;right:0;bottom:0;z-index:500;background:var(--card);border-radius:24px 24px 0 0;padding:10px 16px calc(14px + env(safe-area-inset-bottom));box-shadow:0 -6px 24px rgba(0,0,0,.25);transition:transform .35s cubic-bezier(.2,.8,.2,1)}
 .sheet.min{transform:translateY(calc(100% - 78px))}
 .grab{width:100%;padding:8px 0 14px;cursor:pointer;touch-action:none}.grab i{display:block;width:40px;height:5px;border-radius:3px;background:var(--line);margin:0 auto}
@@ -47,7 +46,7 @@ html,body{margin:0;height:100%;overflow:hidden;background:var(--bg);color:var(--
 input,textarea{width:100%;padding:15px;background:var(--card2);border:2px solid transparent;border-radius:12px;color:var(--text);margin-bottom:10px;font-size:16px;outline:none;font-family:inherit}
 input:focus,textarea:focus{border-color:var(--accent)}
 .tariff{display:flex;justify-content:space-between;align-items:center;padding:14px;background:var(--card2);border-radius:14px;margin-bottom:8px;cursor:pointer;border:2px solid transparent}
-.tariff.sel{border-color:var(--accent);background:rgba(255,90,31,.1)}.tariff small{color:var(--muted)}
+.tariff.sel{border-color:var(--accent);background:rgba(59,130,246,.14)}.tariff small{color:var(--muted)}
 .set{display:flex;justify-content:space-between;align-items:center;padding:14px;background:var(--card2);border-radius:14px;margin-bottom:8px}
 .sw{width:50px;height:30px;border-radius:15px;background:var(--line);position:relative;cursor:pointer;transition:.2s;border:none}
 .sw::after{content:"";position:absolute;top:3px;left:3px;width:24px;height:24px;border-radius:50%;background:#fff;transition:.2s}
@@ -72,10 +71,12 @@ input:focus,textarea:focus{border-color:var(--accent)}
 .pin svg.bg{position:absolute;inset:0;width:44px;height:52px}
 .pin .ic{position:absolute;left:9px;top:6px;width:26px;height:26px;fill:#fff}
 .pin .b{position:absolute;right:-6px;top:-4px;font-size:10px;font-weight:700;color:#fff;border-radius:8px;padding:1px 5px;border:2px solid #fff}
-.park{width:28px;height:28px;border-radius:50%;background:var(--blue);color:#fff;font-weight:800;font-size:15px;display:grid;place-items:center;border:2px solid #fff;box-shadow:0 2px 6px rgba(0,0,0,.35)}
+.park{width:28px;height:28px;border-radius:50%;background:var(--park);color:#fff;font-weight:800;font-size:15px;display:grid;place-items:center;border:2px solid #fff;box-shadow:0 2px 6px rgba(0,0,0,.35)}
 .btn-icon{position:relative}.btn-icon.dot::after{content:"";position:absolute;top:7px;right:7px;width:11px;height:11px;border-radius:50%;background:var(--red);border:2px solid var(--card)}
 .ticket{background:var(--card2);border-radius:14px;padding:12px;margin-bottom:8px;text-align:left;font-size:14px;line-height:1.4}.ticket small{color:var(--muted)}.ticket .rp{margin-top:8px;padding-left:10px;border-left:3px solid var(--green)}
-.layer-btn{position:absolute;right:12px;z-index:400;background:var(--card);width:44px;height:44px;border-radius:14px;box-shadow:var(--shadow);border:none;font-size:20px;cursor:pointer;display:grid;place-items:center;transition:bottom .35s cubic-bezier(.2,.8,.2,1)}
+.fabs{position:absolute;right:12px;bottom:calc(var(--sheetH,190px) + 14px);z-index:600;display:flex;flex-direction:column;align-items:flex-end;gap:10px;transition:bottom .35s cubic-bezier(.2,.8,.2,1)}
+.fabs button{height:44px;border:none;border-radius:14px;background:var(--card);color:var(--text);box-shadow:var(--shadow);cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px;font-size:20px}
+.fabs .loc{padding:0 14px;font-size:14px;font-weight:700}.fabs .loc svg{width:20px;height:20px;fill:currentColor}.fabs .lay{width:44px}
 .user-dot{width:18px;height:18px;border-radius:50%;background:#0ea5e9;border:3px solid #fff;box-shadow:0 0 0 8px rgba(14,165,233,.25)}
 #toast{position:absolute;left:50%;top:calc(70px + env(safe-area-inset-top));transform:translate(-50%,-20px);background:var(--text);color:var(--bg);padding:11px 18px;border-radius:14px;font-size:14px;font-weight:600;z-index:2000;opacity:0;transition:.25s;pointer-events:none;max-width:90%;text-align:center}
 #toast.show{opacity:1;transform:translate(-50%,0)}
@@ -96,9 +97,10 @@ input:focus,textarea:focus{border-color:var(--accent)}
     <button class="btn-icon" id="profBtn" onclick="openProfile()" aria-label="Профиль"><svg viewBox="0 0 24 24"><path d="M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8zm0 2c-2.7 0-8 1.3-8 4v2h16v-2c0-2.7-5.3-4-8-4z"/></svg></button>
   </div>
  
-  <button class="btn-icon fab" id="locBtn" onclick="locate()" aria-label="Где я"><svg viewBox="0 0 24 24"><path d="M12 8a4 4 0 1 0 0 8 4 4 0 0 0 0-8zm8.9 3A9 9 0 0 0 13 3.1V1h-2v2.1A9 9 0 0 0 3.1 11H1v2h2.1A9 9 0 0 0 11 20.9V23h2v-2.1a9 9 0 0 0 7.9-7.9H23v-2h-2.1zM12 19a7 7 0 1 1 0-14 7 7 0 0 1 0 14z"/></svg></button>
- 
-  <button class="layer-btn" id="layerBtn" onclick="toggleLayer()" aria-label="Слой карты">🛰️</button>
+  <div class="fabs" id="fabs">
+    <button class="lay" id="layerBtn" onclick="toggleLayer()" aria-label="Слой карты">🛰️</button>
+    <button class="loc" id="locBtn" onclick="locate()" aria-label="Где я"><svg viewBox="0 0 24 24"><path d="M12 8a4 4 0 1 0 0 8 4 4 0 0 0 0-8zm8.9 3A9 9 0 0 0 13 3.1V1h-2v2.1A9 9 0 0 0 3.1 11H1v2h2.1A9 9 0 0 0 11 20.9V23h2v-2.1a9 9 0 0 0 7.9-7.9H23v-2h-2.1zM12 19a7 7 0 1 1 0-14 7 7 0 0 1 0 14z"/></svg>Где я</button>
+  </div>
  
   <div class="sheet" id="sheet">
     <div class="grab" onclick="toggleSheet()"><i></i></div>
@@ -165,7 +167,7 @@ input:focus,textarea:focus{border-color:var(--accent)}
  
   <div class="modal" id="finishModal"><div class="mc">
     <h2>Завершение поездки</h2>
-    <div class="sub">Поставьте самокат на официальную парковку (синяя «P» на карте) и пристегните к металлической ограде. На фото должны быть видны и самокат, и ограда.</div>
+    <div class="sub">Поставьте самокат на официальную парковку (зелёная «P» на карте) и пристегните к металлической ограде. На фото должны быть видны и самокат, и ограда.</div>
     <div class="note" id="parkHint"></div>
     <label class="photo" id="photoBox">
       <input type="file" id="photoInput" accept="image/*" capture="environment" hidden onchange="onPhoto(this)" />
@@ -270,12 +272,12 @@ function scooterArt(){
   return `<svg viewBox="0 0 240 150" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
     <ellipse cx="120" cy="137" rx="98" ry="7" fill="rgba(0,0,0,.2)"/>
     ${w(52)}${w(190)}
-    <path d="M27 108a25 25 0 0 1 50 0" fill="none" stroke="#ff5a1f" stroke-width="5" stroke-linecap="round"/>
-    <rect x="52" y="98" width="138" height="14" rx="7" fill="#ff5a1f"/>
+    <path d="M27 108a25 25 0 0 1 50 0" fill="none" stroke="#2563eb" stroke-width="5" stroke-linecap="round"/>
+    <rect x="52" y="98" width="138" height="14" rx="7" fill="#2563eb"/>
     <rect x="66" y="94" width="86" height="7" rx="3.500" fill="#2f333b"/>
     <rect x="82" y="110" width="66" height="14" rx="5" fill="#3a3f48"/>
     <rect x="88" y="114" width="30" height="6" rx="3" fill="#22c55e"/>
-    <path d="M186 106 L170 30" stroke="#ff5a1f" stroke-width="9" stroke-linecap="round"/>
+    <path d="M186 106 L170 30" stroke="#2563eb" stroke-width="9" stroke-linecap="round"/>
     <path d="M150 26h40" stroke="#23262d" stroke-width="8" stroke-linecap="round"/>
     <rect x="158" y="12" width="24" height="10" rx="3" fill="#23262d"/><rect x="162" y="15" width="14" height="4" rx="2" fill="#22c55e"/>
     <circle cx="180" cy="56" r="5.500" fill="#ffd166"/>
@@ -285,7 +287,7 @@ function batColor(b){ return b>50 ? '#22c55e' : b>20 ? '#f59e0b' : '#ef4444'; }
 function pinIcon(s){
   const b = s.battery ?? 100;
   return L.divIcon({className:'', iconSize:[44,52], iconAnchor:[22,50], html:
-   `<div class="pin"><svg class="bg" viewBox="0 0 44 52"><path d="M22 51C22 51 3 33 3 20a19 19 0 0 1 38 0c0 13-19 31-19 31z" fill="#ff5a1f" stroke="#fff" stroke-width="3"/></svg><svg class="ic" viewBox="0 0 24 24"><path d="M19 7a2 2 0 0 0-2-2h-3v2h3v2.7L13.5 14H10V9H6a4 4 0 0 0-4 4v3h2a3 3 0 0 0 6 0h4.5L19 10.4V7zM7 18a1 1 0 0 1-1-1h2a1 1 0 0 1-1 1z"/></svg><span class="b" style="background:${batColor(b)}">${b}%</span></div>`});
+   `<div class="pin"><svg class="bg" viewBox="0 0 44 52"><path d="M22 51C22 51 3 33 3 20a19 19 0 0 1 38 0c0 13-19 31-19 31z" fill="#2563eb" stroke="#fff" stroke-width="3"/></svg><svg class="ic" viewBox="0 0 24 24"><path d="M19 7a2 2 0 0 0-2-2h-3v2h3v2.7L13.5 14H10V9H6a4 4 0 0 0-4 4v3h2a3 3 0 0 0 6 0h4.5L19 10.4V7zM7 18a1 1 0 0 1-1-1h2a1 1 0 0 1-1 1z"/></svg><span class="b" style="background:${batColor(b)}">${b}%</span></div>`});
 }
  
 function setPos(p){
@@ -310,7 +312,7 @@ async function loadParkings(){
     parkings = await (await fetch(API+'/api/parkings')).json();
     parkLayer.clearLayers();
     parkings.forEach(p => {
-      L.circle([p.lat,p.lng], {radius:p.r, color:'#3b82f6', weight:2, fillColor:'#3b82f6', fillOpacity:.18, interactive:false}).addTo(parkLayer);
+      L.circle([p.lat,p.lng], {radius:p.r, color:'#14b8a6', weight:2, fillColor:'#14b8a6', fillOpacity:.18, interactive:false}).addTo(parkLayer);
       L.marker([p.lat,p.lng], {icon:L.divIcon({className:'', iconSize:[28,28], iconAnchor:[14,14], html:'<div class="park">P</div>'}), interactive:false}).addTo(parkLayer);
     });
   } catch(e){}
@@ -356,8 +358,8 @@ function renderAll(){
 }
 function toggleSheet(){ $('sheet').classList.toggle('min'); placeFab(); }
 function placeFab(){
-  const b = ($('sheet').classList.contains('min') ? 78 : $('sheet').offsetHeight) + 14;
-  $('locBtn').style.bottom = b + 'px'; $('layerBtn').style.bottom = (b + 56) + 'px';
+  const b = $('sheet').classList.contains('min') ? 78 : $('sheet').offsetHeight;
+  $('fabs').style.setProperty('--sheetH', b + 'px');
 }
 new ResizeObserver(placeFab).observe($('sheet'));
  
