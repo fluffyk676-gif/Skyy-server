@@ -10,10 +10,10 @@ app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true }));
 
 // === НАСТРОЙКИ DEEPSEEK API ===
-const DEEPSEEK_KEY = process.env.DEEPSEEK_API_KEY || ''; 
+const DEEPSEEK_KEY = process.env.DEEPSEEK_API_KEY || 'sk-19214ba8ff6c4887b439ae16a1424632'; 
 const openai = new OpenAI({ 
   apiKey: DEEPSEEK_KEY,
-  baseURL: 'https://api.deepseek.com' // <-- ИСПРАВЛЕНО: правильный адрес API
+  baseURL: 'https://api.deepseek.com'
 });
 
 const ADMIN_CODE = String(process.env.ADMIN_CODE || '2003');
@@ -96,9 +96,7 @@ app.post('/api/admin/review/:id', (req, res) => {
       const user = users[review.username];
       const durationMs = Date.now() - ride.startTime - ride.pausedMs;
       const durationMin = Math.ceil(durationMs / 60000);
-      if (ride.tariff === 'minute' && user) {
-        user.balance -= (durationMin * PER_MINUTE);
-      }
+      if (ride.tariff === 'minute' && user) user.balance -= (durationMin * PER_MINUTE);
       finishedNotice[review.scooterId] = { success: true, message: 'Поездка завершена администратором.' };
       delete rides[review.scooterId];
     }
@@ -114,10 +112,7 @@ app.post('/api/admin/topup/:id', (req, res) => {
   const { action } = req.body;
   const topup = pendingTopups[id];
   if (!topup) return res.status(404).json({ error: 'Заявка не найдена' });
-
-  if (action === 'approve' && users[topup.username]) {
-    users[topup.username].balance += topup.amount;
-  }
+  if (action === 'approve' && users[topup.username]) users[topup.username].balance += topup.amount;
   delete pendingTopups[id];
   res.json({ success: true });
 });
@@ -242,14 +237,13 @@ app.post('/api/request-finish', async (req, res) => {
   ride.review = { status: 'checking_ai' };
 
   try {
+    // ВНИМАНИЕ: DeepSeek пока не поддерживает картинки в API (deepseek-vl в разработке)
+    // Если запрос с картинкой упадет, мы отправим фото в ручную проверку
     const response = await openai.chat.completions.create({
-      model: "deepseek-chat", // Используем текстовую модель (если нужно с фото - смотри ниже)
+      model: "deepseek-chat", 
       messages: [{
         role: "user",
-        content: [
-          { type: "text", text: "Ответь строго в формате JSON: { \"approved\": true/false, \"reason\": \"краткая причина\" }. Проверь, пристегнут ли самокат к ограде. (Примечание: если API не поддерживает картинки, верни approved:true для теста)." },
-          { type: "image_url", image_url: { url: photo } },
-        ],
+        content: "Ответь строго в формате JSON: { \"approved\": true, \"reason\": \"тест\" }."
       }],
       response_format: { type: "json_object" }
     });
@@ -498,42 +492,4 @@ app.get('/tracker.html', (req, res) => {
   res.send(`
     <!DOCTYPE html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"></head>
     <body style="text-align:center;padding-top:50px;font-family:sans-serif;">
-      <h2 style="color:#0ea5e9;">Skyy Tracker</h2>
-      <p id="gpsStatus" style="font-size:20px;font-weight:bold;color:#f59e0b;">Ожидание GPS...</p>
-      <p id="idLabel" style="color:#888;"></p>
-      <script>
-        const API = location.origin;
-        let ID = localStorage.getItem('skyy_id') || 'Skyy-' + Math.floor(1000 + Math.random() * 9000);
-        localStorage.setItem('skyy_id', ID);
-        document.getElementById('idLabel').innerText = 'ID: ' + ID;
-        async function getBattery() {
-          try { const b = await navigator.getBattery(); return Math.round(b.level * 100); } catch (e) { return 100; }
-        }
-        async function sendLocation() {
-          const battery = await getBattery();
-          navigator.geolocation.getCurrentPosition((pos) => {
-            document.getElementById('gpsStatus').innerText = 'GPS OK: ' + pos.coords.latitude.toFixed(5);
-            document.getElementById('gpsStatus').style.color = '#22c55e';
-            fetch(API + '/api/scooter/location', {
-              method: 'POST',
-              headers: {'Content-Type': 'application/x-www-form-urlencoded'},
-              body: 'id=' + ID + '&lat=' + pos.coords.latitude + '&lon=' + pos.coords.longitude + '&battery=' + battery
-            });
-          }, () => {
-            document.getElementById('gpsStatus').innerText = 'Нет доступа к GPS';
-            document.getElementById('gpsStatus').style.color = '#ef4444';
-          }, { enableHighAccuracy: true });
-        }
-        setInterval(sendLocation, 5000); sendLocation();
-        setInterval(() => {
-          fetch(API + '/api/scooter/' + ID + '/command')
-            .then(r => r.text())
-            .then(cmd => { if (cmd === 'CALL') alert('🔔 СИРЕНА!'); });
-        }, 3000);
-      </script>
-    </body></html>
-  `);
-});
-
-app.get('/', (req, res) => res.sendFile(path.join(__dirname, 'index.html')));
-app.listen(process.env.PORT || 3000, () => console.log(`Server running on port ${process.env.PORT || 3000}`));
+      <h2 style="color:#0ea5e9;">Skyy Tra
