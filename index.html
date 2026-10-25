@@ -14,12 +14,7 @@
 html,body{margin:0;height:100%;overflow:hidden;background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;transition:background .3s,color .3s}
 #app{position:relative;height:100dvh;max-width:480px;margin:0 auto;overflow:hidden}
 #map{position:absolute;inset:0;z-index:1;background:var(--bg)}
-
-/* ИНВЕРСИЯ ТОЛЬКО ДЛЯ СХЕМЫ В ТЕМНОЙ ТЕМЕ */
-:root[data-theme=dark] #map.map-mode .leaflet-tile-pane {
-  filter: invert(1) hue-rotate(180deg) brightness(.92) contrast(.95) saturate(.8);
-}
-
+#map.dark .leaflet-tile-pane{filter:invert(1) hue-rotate(180deg) brightness(.92) contrast(.95) saturate(.8)}
 .leaflet-control-attribution{font-size:9px!important;opacity:.6}
 .topbar{position:absolute;top:0;left:0;right:0;z-index:500;padding:calc(12px + env(safe-area-inset-top)) 12px 0;display:flex;gap:8px;align-items:center}
 .logo{height:44px;padding:0 14px;border-radius:14px;background:var(--accent);color:#fff;font-weight:800;font-size:20px;display:grid;place-items:center;box-shadow:var(--shadow);letter-spacing:.3px}
@@ -56,7 +51,17 @@ input:focus,textarea:focus{border-color:var(--accent)}
 .set{display:flex;justify-content:space-between;align-items:center;padding:14px;background:var(--card2);border-radius:14px;margin-bottom:8px}
 .sw{width:50px;height:30px;border-radius:15px;background:var(--line);position:relative;cursor:pointer;transition:.2s;border:none}
 .sw::after{content:"";position:absolute;top:3px;left:3px;width:24px;height:24px;border-radius:50%;background:#fff;transition:.2s}
-:root[data-theme=dark] .sw{background:var(--accent)}:root[data-theme=dark] .sw::after{left:23px}
+.sw.on{background:var(--accent)}.sw.on::after{left:23px}
+.seg{display:flex;background:var(--card2);border-radius:14px;padding:4px;gap:4px;margin-bottom:8px}
+.seg button{flex:1;border:none;background:transparent;color:var(--muted);padding:11px 4px;border-radius:11px;font-size:14px;font-weight:700;cursor:pointer}
+.seg button.on{background:var(--card);color:var(--text);box-shadow:0 2px 8px rgba(0,0,0,.18)}
+.hero{display:grid;place-items:center;background:var(--card2);border-radius:18px;padding:14px;margin-bottom:12px}
+.hero svg{width:100%;max-width:300px;height:auto}
+.ico.art-sm{width:68px;height:50px}.ico.art-sm svg{width:62px;height:auto}
+.bar{height:8px;border-radius:4px;background:var(--line);overflow:hidden;margin:6px 0 10px}.bar i{display:block;height:100%;border-radius:4px}
+.kv{display:flex;justify-content:space-between;gap:10px;padding:11px 0;border-bottom:1px solid var(--line);font-size:15px;text-align:left}
+.kv span{color:var(--muted)}.kv b{text-align:right}
+.sec-t{font-size:13px;color:var(--muted);margin:16px 0 8px;text-align:left}
 .timer{font-size:68px;font-weight:800;margin:8px 0;font-variant-numeric:tabular-nums;text-align:center}
 .row{display:flex;gap:10px}
 .note{padding:12px 14px;border-radius:14px;font-size:14px;line-height:1.4;margin:8px 0;background:var(--card2);text-align:left}
@@ -68,15 +73,17 @@ input:focus,textarea:focus{border-color:var(--accent)}
 .pin .ic{position:absolute;left:9px;top:6px;width:26px;height:26px;fill:#fff}
 .pin .b{position:absolute;right:-6px;top:-4px;font-size:10px;font-weight:700;color:#fff;border-radius:8px;padding:1px 5px;border:2px solid #fff}
 .park{width:28px;height:28px;border-radius:50%;background:var(--blue);color:#fff;font-weight:800;font-size:15px;display:grid;place-items:center;border:2px solid #fff;box-shadow:0 2px 6px rgba(0,0,0,.35)}
+.btn-icon{position:relative}.btn-icon.dot::after{content:"";position:absolute;top:7px;right:7px;width:11px;height:11px;border-radius:50%;background:var(--red);border:2px solid var(--card)}
+.ticket{background:var(--card2);border-radius:14px;padding:12px;margin-bottom:8px;text-align:left;font-size:14px;line-height:1.4}.ticket small{color:var(--muted)}.ticket .rp{margin-top:8px;padding-left:10px;border-left:3px solid var(--green)}
+.layer-btn{position:absolute;right:12px;z-index:400;background:var(--card);width:44px;height:44px;border-radius:14px;box-shadow:var(--shadow);border:none;font-size:20px;cursor:pointer;display:grid;place-items:center;transition:bottom .35s cubic-bezier(.2,.8,.2,1)}
 .user-dot{width:18px;height:18px;border-radius:50%;background:#0ea5e9;border:3px solid #fff;box-shadow:0 0 0 8px rgba(14,165,233,.25)}
 #toast{position:absolute;left:50%;top:calc(70px + env(safe-area-inset-top));transform:translate(-50%,-20px);background:var(--text);color:var(--bg);padding:11px 18px;border-radius:14px;font-size:14px;font-weight:600;z-index:2000;opacity:0;transition:.25s;pointer-events:none;max-width:90%;text-align:center}
 #toast.show{opacity:1;transform:translate(-50%,0)}
-.layer-btn { position: absolute; right: 12px; z-index: 400; background: var(--card); width: 44px; height: 44px; border-radius: 14px; box-shadow: var(--shadow); border: none; font-size: 20px; cursor: pointer; display: grid; place-items: center; color: var(--text);}
 </style>
 </head>
 <body>
 <div id="app">
-  <div id="map" class="map-mode"></div>
+  <div id="map"></div>
   <div id="toast"></div>
  
   <div class="topbar">
@@ -85,13 +92,13 @@ input:focus,textarea:focus{border-color:var(--accent)}
       <svg viewBox="0 0 24 24"><path d="M15.5 14h-.8l-.3-.3A6.5 6.5 0 1 0 14 15.5l.3.3v.8l5 5 1.5-1.5-5-5zm-6 0a4.5 4.5 0 1 1 0-9 4.5 4.5 0 0 1 0 9z"/></svg>
       <input id="searchInput" placeholder="Номер самоката" oninput="renderAll()" />
     </div>
-    <button class="btn-icon" onclick="toggleTheme()" aria-label="Тема" id="themeBtn"></button>
-    <button class="btn-icon" onclick="openProfile()" aria-label="Профиль"><svg viewBox="0 0 24 24"><path d="M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8zm0 2c-2.7 0-8 1.3-8 4v2h16v-2c0-2.7-5.3-4-8-4z"/></svg></button>
+    <button class="btn-icon" onclick="openSettings()" aria-label="Настройки"><svg viewBox="0 0 24 24"><path d="M19.14 12.94c.04-.3.06-.61.06-.94 0-.32-.02-.64-.07-.94l2.03-1.58c.18-.14.23-.41.12-.61l-1.92-3.32c-.12-.22-.37-.29-.59-.22l-2.39.96c-.5-.38-1.03-.7-1.62-.94l-.36-2.54c-.04-.24-.24-.41-.48-.41h-3.84c-.24 0-.43.17-.47.41l-.36 2.54c-.59.24-1.13.57-1.62.94l-2.39-.96c-.22-.08-.47 0-.59.22L2.74 8.87c-.12.21-.08.47.12.61l2.03 1.58c-.05.3-.09.63-.09.94s.02.64.07.94l-2.03 1.58c-.18.14-.23.41-.12.61l1.92 3.32c.12.22.37.29.59.22l2.39-.96c.5.38 1.03.7 1.62.94l.36 2.54c.05.24.24.41.48.41h3.84c.24 0 .44-.17.47-.41l.36-2.54c.59-.24 1.13-.56 1.62-.94l2.39.96c.22.08.47 0 .59-.22l1.92-3.32c.12-.22.07-.47-.12-.61l-2.01-1.58zM12 15.6c-1.98 0-3.6-1.62-3.6-3.6s1.62-3.6 3.6-3.6 3.6 1.62 3.6 3.6-1.62 3.6-3.6 3.6z"/></svg></button>
+    <button class="btn-icon" id="profBtn" onclick="openProfile()" aria-label="Профиль"><svg viewBox="0 0 24 24"><path d="M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8zm0 2c-2.7 0-8 1.3-8 4v2h16v-2c0-2.7-5.3-4-8-4z"/></svg></button>
   </div>
  
-  <button class="layer-btn" id="layerBtn" onclick="toggleLayer()" style="bottom: 160px;">🗺️</button>
-
   <button class="btn-icon fab" id="locBtn" onclick="locate()" aria-label="Где я"><svg viewBox="0 0 24 24"><path d="M12 8a4 4 0 1 0 0 8 4 4 0 0 0 0-8zm8.9 3A9 9 0 0 0 13 3.1V1h-2v2.1A9 9 0 0 0 3.1 11H1v2h2.1A9 9 0 0 0 11 20.9V23h2v-2.1a9 9 0 0 0 7.9-7.9H23v-2h-2.1zM12 19a7 7 0 1 1 0-14 7 7 0 0 1 0 14z"/></svg></button>
+ 
+  <button class="layer-btn" id="layerBtn" onclick="toggleLayer()" aria-label="Слой карты">🛰️</button>
  
   <div class="sheet" id="sheet">
     <div class="grab" onclick="toggleSheet()"><i></i></div>
@@ -100,12 +107,48 @@ input:focus,textarea:focus{border-color:var(--accent)}
     <div id="list"></div>
   </div>
  
+  <div class="modal" id="scooterModal"><div class="mc">
+    <div class="hero" id="scHero"></div>
+    <h2 id="scId" style="margin-bottom:4px"></h2>
+    <div class="bar"><i id="scBar"></i></div>
+    <div class="kv"><span>Заряд</span><b id="scBat"></b></div>
+    <div class="kv"><span>Запас хода</span><b id="scRange"></b></div>
+    <div class="kv"><span>До самоката</span><b id="scDist"></b></div>
+    <div class="kv"><span>Последний сигнал</span><b id="scSeen"></b></div>
+    <div class="kv"><span>Тарифы</span><b>от 7 ₽/мин</b></div>
+    <button class="btn" onclick="goTariff()">Поехать</button>
+    <div class="row"><button class="btn sec" onclick="routeTo()">Маршрут</button><button class="btn sec" onclick="reportScooter()">Проблема</button></div>
+  </div></div>
+ 
+  <div class="modal" id="settingsModal"><div class="mc">
+    <h2>Настройки</h2>
+    <div class="sec-t" style="margin-top:0">Тема оформления</div>
+    <div class="seg" id="themeSeg">
+      <button data-t="light" onclick="setTheme('light')">Светлая</button>
+      <button data-t="dark" onclick="setTheme('dark')">Тёмная</button>
+      <button data-t="auto" onclick="setTheme('auto')">Авто</button>
+    </div>
+    <div class="sec-t">Карта и уведомления</div>
+    <div class="set"><span>Парковки на карте</span><button class="sw" id="swParks" onclick="togglePref('parks')" aria-label="Парковки"></button></div>
+    <div class="set"><span>Вибрация при событиях</span><button class="sw" id="swVib" onclick="togglePref('vibrate')" aria-label="Вибрация"></button></div>
+    <div class="sec-t">Аккаунт</div>
+    <div class="set"><span id="setUser"></span></div>
+    <button class="btn" id="setLogin" onclick="closeM('settingsModal');openProfile()">Войти</button>
+    <button class="btn sec" id="setSupport" onclick="closeM('settingsModal');openM('supportModal')">Поддержка</button>
+    <button class="btn sec" id="setLogout" onclick="logout();closeM('settingsModal')">Выйти</button>
+    <div class="sec-t">О приложении</div>
+    <div class="kv"><span>Skyy Кикшеринг</span><b>v1.0</b></div>
+    <div class="kv"><span>Тарифы</span><b>7 ₽/мин · 150 ₽/30 мин · 250 ₽/час</b></div>
+    <button class="btn sec" onclick="closeM('settingsModal')">Закрыть</button>
+  </div></div>
+ 
   <div class="modal" id="tariffModal"><div class="mc">
     <h2>Выберите тариф</h2>
     <div class="tariff sel" onclick="selTariff('minute',this)"><div><b>Поминутно</b><br><small>Старт 30 ₽, затем 7 ₽/мин</small></div><b>7 ₽/мин</b></div>
     <div class="tariff" onclick="selTariff('30min',this)"><div><b>30 минут</b><br><small>Фиксированно</small></div><b>150 ₽</b></div>
     <div class="tariff" onclick="selTariff('60min',this)"><div><b>1 час</b><br><small>Фиксированно</small></div><b>250 ₽</b></div>
     <button class="btn" onclick="confirmTariff()">Поехали</button>
+    <button class="btn sec" onclick="ringScooter(currentScooter.id)"><svg viewBox="0 0 24 24"><path d="M12 22a2 2 0 0 0 2-2h-4a2 2 0 0 0 2 2zm6-6V11a6 6 0 0 0-5-5.9V4a1 1 0 0 0-2 0v1.1A6 6 0 0 0 6 11v5l-2 2v1h16v-1l-2-2z"/></svg>Найти по звуку</button>
     <button class="btn sec" onclick="closeM('tariffModal')">Отмена</button>
   </div></div>
  
@@ -114,10 +157,9 @@ input:focus,textarea:focus{border-color:var(--accent)}
     <div class="timer" id="rideTimer">00:00</div>
     <div class="note" id="rideNote" style="display:none"></div>
     <div class="row">
-      <button class="btn sec" onclick="toast('Фонарь включён')"><svg viewBox="0 0 24 24"><path d="M9 21c0 .6.4 1 1 1h4c.6 0 1-.4 1-1v-1H9v1zm3-19a7 7 0 0 0-4 12.7V17c0 .6.4 1 1 1h6c.6 0 1-.4 1-1v-2.3A7 7 0 0 0 12 2z"/></svg>Фонарь</button>
+      <button class="btn sec" onclick="ringScooter()"><svg viewBox="0 0 24 24"><path d="M12 22a2 2 0 0 0 2-2h-4a2 2 0 0 0 2 2zm6-6V11a6 6 0 0 0-5-5.9V4a1 1 0 0 0-2 0v1.1A6 6 0 0 0 6 11v5l-2 2v1h16v-1l-2-2z"/></svg>Позвонить</button>
       <button class="btn sec" id="pauseBtn" onclick="togglePause()"></button>
     </div>
-    <button class="btn sec" onclick="ringScooter()" style="margin-top:10px;">🔔 Прозвон</button>
     <button class="btn red" id="endBtn" onclick="openFinish()">Завершить поездку</button>
   </div></div>
  
@@ -148,24 +190,16 @@ input:focus,textarea:focus{border-color:var(--accent)}
       <button class="btn sec" onclick="openSupport()">Поддержка</button>
       <button class="btn sec" onclick="logout()">Выйти</button>
     </div>
-    <div class="set" style="margin-top:14px"><span>Тёмная тема</span><button class="sw" onclick="toggleTheme()" aria-label="Переключить тему"></button></div>
+    <button class="btn sec" onclick="closeM('profileModal');openSettings()">Настройки</button>
     <button class="btn sec" onclick="closeM('profileModal')">Закрыть</button>
   </div></div>
  
   <div class="modal" id="supportModal"><div class="mc">
     <h2>Поддержка</h2>
-    <div style="display:flex; gap:10px; margin-bottom:15px;">
-      <button class="btn sec" onclick="showSupport('write')">Написать</button>
-      <button class="btn sec" onclick="showSupport('history')">Мои обращения</button>
-    </div>
-    <div id="supportWrite">
-      <textarea id="supportMsg" rows="3" placeholder="Опишите проблему"></textarea>
-      <button class="btn" onclick="sendSupport()">Отправить</button>
-    </div>
-    <div id="supportHistory" style="display:none; text-align:left; max-height:50vh; overflow-y:auto;">
-      <div id="myTicketsList">Загрузка...</div>
-    </div>
+    <textarea id="supportMsg" rows="3" placeholder="Опишите проблему"></textarea>
+    <button class="btn" onclick="sendSupport()">Отправить</button>
     <button class="btn sec" onclick="closeM('supportModal')">Назад</button>
+    <div id="tickets" style="margin-top:16px"></div>
   </div></div>
  
   <div class="modal" id="topupModal"><div class="mc">
@@ -185,56 +219,68 @@ const ICO = {moon:'<svg viewBox="0 0 24 24"><path d="M12.3 3a9 9 0 1 0 8.7 11.5A
 const PAUSE = '<svg viewBox="0 0 24 24"><path d="M6 19h4V5H6zm8-14v14h4V5z"/></svg>Пауза', PLAY = '<svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>Продолжить';
  
 let user = null; try { user = JSON.parse(localStorage.getItem('skyy_user')); } catch(e){}
-let theme = localStorage.getItem('skyy_theme') || 'dark';
+let S = {theme:'dark', parks:true, vibrate:true};
+try { const old = localStorage.getItem('skyy_theme'); if (old) S.theme = old; Object.assign(S, JSON.parse(localStorage.getItem('skyy_settings'))); } catch(e){}
+const mq = window.matchMedia('(prefers-color-scheme: dark)');
+let theme = 'dark';
+const saveS = () => localStorage.setItem('skyy_settings', JSON.stringify(S));
+const vib = p => { if (S.vibrate && navigator.vibrate) navigator.vibrate(p); };
 let allScooters = [], parkings = [], currentScooter = null, selectedTariff = 'minute';
 let ride = null, timerId = null, pollId = null, userPos = null, photoData = null, lastReview = '';
  
+/* ---------- ТЕМА ---------- */
 function applyTheme(){
+  theme = S.theme === 'auto' ? (mq.matches ? 'dark' : 'light') : S.theme;
   document.documentElement.dataset.theme = theme;
   document.querySelector('meta[name=theme-color]').content = theme==='dark' ? '#101114' : '#f3f4f6';
-  $('themeBtn').innerHTML = theme==='dark' ? ICO.sun : ICO.moon;
   setTiles();
 }
-function toggleTheme(){ theme = theme==='dark' ? 'light' : 'dark'; localStorage.setItem('skyy_theme', theme); applyTheme(); }
+if (mq.addEventListener) mq.addEventListener('change', () => { if (S.theme === 'auto') applyTheme(); });
+function applyParks(){ S.parks ? map.addLayer(parkLayer) : map.removeLayer(parkLayer); }
+function setTheme(t){ S.theme = t; saveS(); applyTheme(); paintSettings(); }
+function togglePref(k){ S[k] = !S[k]; saveS(); if (k === 'parks') applyParks(); if (k === 'vibrate') vib(40); paintSettings(); }
+function openSettings(){ paintSettings(); openM('settingsModal'); }
+function paintSettings(){
+  document.querySelectorAll('#themeSeg button').forEach(b => b.classList.toggle('on', b.dataset.t === S.theme));
+  $('swParks').classList.toggle('on', S.parks); $('swVib').classList.toggle('on', S.vibrate);
+  $('setUser').textContent = user ? user.username + ' · ' + user.balance + ' ₽' : 'Вы не вошли в аккаунт';
+  $('setLogin').style.display = user ? 'none' : ''; $('setSupport').style.display = user ? '' : 'none'; $('setLogout').style.display = user ? '' : 'none';
+}
  
+/* ---------- КАРТА ---------- */
 const map = L.map('map', {zoomControl:false, maxZoom:19}).setView([55.75,37.61], 15);
 map.attributionControl.setPrefix('');
-let tiles;
-let layerMode = 'map'; // map | sat
-
-// === ИСПРАВЛЕНО: ИНВЕРСИЯ ТОЛЬКО ДЛЯ СХЕМЫ ===
+let tiles, layerMode = 'map';
 function setTiles(){
   if (tiles) map.removeLayer(tiles);
-  
-  const mapEl = document.getElementById('map');
-  
-  if (layerMode === 'sat') {
-    mapEl.classList.remove('map-mode'); // Отключаем фильтр для спутника
-    tiles = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
-      maxZoom: 19,
-      attribution: '© Esri'
-    }).addTo(map);
-    document.getElementById('layerBtn').innerText = '🗺️';
-  } else {
-    mapEl.classList.add('map-mode'); // Включаем фильтр для схемы
-    tiles = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-      maxZoom: 19,
-      attribution: '© OpenStreetMap'
-    }).addTo(map);
-    document.getElementById('layerBtn').innerText = '🛰️';
-  }
+  tiles = layerMode === 'sat'
+    ? L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {maxZoom:19, attribution:'© Esri'})
+    : L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {maxZoom:19, attribution:'© OpenStreetMap'});
+  tiles.addTo(map);
+  $('map').classList.toggle('dark', theme === 'dark' && layerMode === 'map');
+  $('layerBtn').textContent = layerMode === 'map' ? '🛰️' : '🗺️';
 }
-
-function toggleLayer() {
-  layerMode = layerMode === 'map' ? 'sat' : 'map';
-  setTiles();
-}
-// ===============================================
-
+function toggleLayer(){ layerMode = layerMode === 'map' ? 'sat' : 'map'; setTiles(); }
 const parkLayer = L.layerGroup().addTo(map);
 const layer = L.layerGroup().addTo(map);
-applyTheme();
+applyTheme(); applyParks();
  
+function scooterArt(){
+  const w = (cx) => `<circle cx="${cx}" cy="112" r="22" fill="#23262d"/><circle cx="${cx}" cy="112" r="12" fill="#a3a9b5"/><circle cx="${cx}" cy="112" r="4.500" fill="#23262d"/>`;
+  return `<svg viewBox="0 0 240 150" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+    <ellipse cx="120" cy="137" rx="98" ry="7" fill="rgba(0,0,0,.2)"/>
+    ${w(52)}${w(190)}
+    <path d="M27 108a25 25 0 0 1 50 0" fill="none" stroke="#ff5a1f" stroke-width="5" stroke-linecap="round"/>
+    <rect x="52" y="98" width="138" height="14" rx="7" fill="#ff5a1f"/>
+    <rect x="66" y="94" width="86" height="7" rx="3.500" fill="#2f333b"/>
+    <rect x="82" y="110" width="66" height="14" rx="5" fill="#3a3f48"/>
+    <rect x="88" y="114" width="30" height="6" rx="3" fill="#22c55e"/>
+    <path d="M186 106 L170 30" stroke="#ff5a1f" stroke-width="9" stroke-linecap="round"/>
+    <path d="M150 26h40" stroke="#23262d" stroke-width="8" stroke-linecap="round"/>
+    <rect x="158" y="12" width="24" height="10" rx="3" fill="#23262d"/><rect x="162" y="15" width="14" height="4" rx="2" fill="#22c55e"/>
+    <circle cx="180" cy="56" r="5.500" fill="#ffd166"/>
+  </svg>`;
+}
 function batColor(b){ return b>50 ? '#22c55e' : b>20 ? '#f59e0b' : '#ef4444'; }
 function pinIcon(s){
   const b = s.battery ?? 100;
@@ -258,6 +304,7 @@ if (navigator.geolocation) {
   navigator.geolocation.watchPosition(p => { const first = !userPos; setPos(p); if (first) map.setView(userPos, 16); }, () => {}, {enableHighAccuracy:true, maximumAge:5000});
 }
  
+/* ---------- ПАРКОВКИ ---------- */
 async function loadParkings(){
   try {
     parkings = await (await fetch(API+'/api/parkings')).json();
@@ -278,6 +325,7 @@ function paintParkHint(){
   else { el.className='note bad'; el.textContent='Вы вне парковки. Ближайшая — «' + best.p.name + '», до неё ' + fmtD(Math.max(0, best.d - best.p.r)) + '. Отвезите самокат туда.'; }
 }
  
+/* ---------- САМОКАТЫ ---------- */
 function dist(a,b){ const R=6371000,r=Math.PI/180,dLa=(b[0]-a[0])*r,dLo=(b[1]-a[1])*r;
   const x=Math.sin(dLa/2)**2+Math.cos(a[0]*r)*Math.cos(b[0]*r)*Math.sin(dLo/2)**2; return 2*R*Math.asin(Math.sqrt(x)); }
 function fmtD(m){ return m<1000 ? Math.round(m/10)*10+' м' : (m/1000).toFixed(1)+' км'; }
@@ -301,19 +349,19 @@ function renderAll(){
     L.marker([s.lat,s.lng], {icon:pinIcon(s)}).addTo(layer).on('click', () => selectScooter(s));
     const d = document.createElement('div'); d.className = 'item';
     const b = s.battery ?? 100;
-    d.innerHTML = `<div class="ico" style="color:var(--accent)">${SC}</div><div class="i"><b>${s.id}</b><small><span class="bat" style="background:${batColor(b)}"></span>${b}%${s.d!=null?' · '+fmtD(s.d):''}</small></div><div class="price">от 30 ₽</div>`;
+    d.innerHTML = `<div class="ico art-sm">${scooterArt()}</div><div class="i"><b>${s.id}</b><small><span class="bat" style="background:${batColor(b)}"></span>${b}%${s.d!=null?' · '+fmtD(s.d):''}</small></div><div class="price">от 30 ₽</div>`;
     d.onclick = () => { map.flyTo([s.lat,s.lng], 18); selectScooter(s); };
     list.appendChild(d);
   });
 }
 function toggleSheet(){ $('sheet').classList.toggle('min'); placeFab(); }
-function placeFab(){ 
-  const b = ($('sheet').classList.contains('min') ? 78 : $('sheet').offsetHeight) + 14 + 'px';
-  $('locBtn').style.bottom = b; 
-  $('layerBtn').style.bottom = (parseInt(b) + 60) + 'px';
+function placeFab(){
+  const b = ($('sheet').classList.contains('min') ? 78 : $('sheet').offsetHeight) + 14;
+  $('locBtn').style.bottom = b + 'px'; $('layerBtn').style.bottom = (b + 56) + 'px';
 }
 new ResizeObserver(placeFab).observe($('sheet'));
  
+/* ---------- ХЕЛПЕРЫ ---------- */
 let tt; function toast(t){ const e=$('toast'); e.textContent=t; e.classList.add('show'); clearTimeout(tt); tt=setTimeout(()=>e.classList.remove('show'),3200); }
 const openM = id => $(id).classList.add('active'), closeM = id => $(id).classList.remove('active');
 async function post(path, body){
@@ -322,6 +370,7 @@ async function post(path, body){
 }
 function saveUser(){ localStorage.setItem('skyy_user', JSON.stringify(user)); }
  
+/* ---------- ПРОФИЛЬ ---------- */
 function openProfile(){
   $('authForm').style.display = user ? 'none' : 'block';
   $('loggedIn').style.display = user ? 'block' : 'none';
@@ -334,7 +383,7 @@ async function auth(kind){
   try {
     const res = await post('/api/'+kind, {username, password});
     if (res.error) return toast(res.error);
-    user = res.user; saveUser(); openProfile(); checkActiveRide();
+    user = res.user; saveUser(); openProfile(); checkActiveRide(); loadTickets();
   } catch(e){ toast('Сервер недоступен'); }
 }
 function logout(){ user = null; localStorage.removeItem('skyy_user'); closeM('profileModal'); }
@@ -343,16 +392,34 @@ async function refreshUser(){
   try { const res = await post('/api/login', {username:user.username, password:user.password}); if (res.user) { user = res.user; saveUser(); } } catch(e){}
 }
  
-setInterval(async () => {
-  if (!user) return;
-  await refreshUser();
-  if ($('loggedIn').style.display === 'block') $('userBalance').textContent = user.balance + ' ₽';
-}, 5000);
- 
+/* ---------- ПОЕЗДКА ---------- */
 function selectScooter(s){
   if (ride) return toast('Поездка уже идёт');
-  if (!user) { toast('Сначала войдите в аккаунт'); return openProfile(); }
-  currentScooter = s; openM('tariffModal');
+  currentScooter = s; fillScooter(s); openM('scooterModal');
+}
+const RANGE_KM_PER_PERCENT = 0.3; // примерно 30 км на полном заряде — поменяйте под свою модель
+function fillScooter(s){
+  const b = s.battery ?? 100, sec = Math.max(0, Math.round((Date.now() - (s.lastSeen || Date.now())) / 1000));
+  $('scHero').innerHTML = scooterArt();
+  $('scId').textContent = s.id;
+  $('scBar').style.width = b + '%'; $('scBar').style.background = batColor(b);
+  $('scBat').textContent = b + '%';
+  $('scRange').textContent = '≈ ' + Math.round(b * RANGE_KM_PER_PERCENT) + ' км';
+  $('scDist').textContent = userPos ? fmtD(dist(userPos, [s.lat, s.lng])) : 'включите геолокацию';
+  $('scSeen').textContent = sec < 10 ? 'только что' : sec < 60 ? sec + ' с назад' : Math.round(sec / 60) + ' мин назад';
+}
+function goTariff(){
+  if (!user) { closeM('scooterModal'); toast('Сначала войдите в аккаунт'); return openProfile(); }
+  closeM('scooterModal'); openM('tariffModal');
+}
+function routeTo(){
+  const s = currentScooter; if (!s) return;
+  const from = userPos ? userPos[0] + ',' + userPos[1] : '';
+  window.open('https://yandex.ru/maps/?rtext=' + from + '~' + s.lat + ',' + s.lng + '&rtt=pedestrian', '_blank');
+}
+function reportScooter(){
+  if (!user) { closeM('scooterModal'); toast('Войдите, чтобы написать в поддержку'); return openProfile(); }
+  closeM('scooterModal'); $('supportMsg').value = 'Самокат ' + currentScooter.id + ': '; openM('supportModal'); $('supportMsg').focus();
 }
 function selTariff(n, el){ selectedTariff = n; document.querySelectorAll('.tariff').forEach(r => r.classList.remove('sel')); el.classList.add('sel'); }
  
@@ -362,7 +429,7 @@ async function confirmTariff(){
   if (user.balance < need) { toast(`Нужно минимум ${need} ₽. Пополните баланс`); return openProfile(); }
   const res = await post('/api/start-ride', {username:user.username, scooterId:currentScooter.id, tariff:selectedTariff});
   if (res.error) return toast(res.error);
-  user.balance = res.balance; saveUser(); startRideUI(res.ride, currentScooter.id);
+  user.balance = res.balance; saveUser(); vib(80); startRideUI(res.ride, currentScooter.id);
 }
 function startRideUI(r, id){
   ride = r; currentScooter = currentScooter || {id}; currentScooter.id = id; lastReview = (r.review && r.review.status) || '';
@@ -390,13 +457,6 @@ async function togglePause(){
   if (res.error) return toast(res.error);
   ride.paused = res.isPaused; ride.pausedAt = res.pausedAt; ride.pausedMs = res.pausedMs; paintRide();
 }
-
-async function ringScooter() {
-  if (!currentScooter) return;
-  await fetch(API + '/api/scooter/' + currentScooter.id + '/command', { method: 'POST', body: 'CALL' });
-  toast('Сигнал отправлен! Самокат должен пищать.');
-}
-
 async function pollRide(){
   if (!user || !ride) return;
   try {
@@ -404,14 +464,14 @@ async function pollRide(){
     if (r.ride) {
       Object.assign(ride, r.ride); paintRide();
       const st = (ride.review && ride.review.status) || '';
-      if (st === 'rejected' && lastReview !== 'rejected') toast('Нужно переставить самокат');
+      if (st === 'rejected' && lastReview !== 'rejected') toast('Нужно переставить самокат'); vib([80,60,80]);
       lastReview = st;
     } else if (r.finished) finishedUI(r.finished);
   } catch(e){}
 }
 function finishedUI(f){
   clearInterval(timerId); clearInterval(pollId); ride = null;
-  user.balance = f.balance; saveUser(); closeM('rideModal');
+  user.balance = f.balance; saveUser(); closeM('rideModal'); vib(120);
   toast(`Поездка завершена. Доплата: ${f.extraCost} ₽, баланс: ${f.balance} ₽`); loadScooters();
 }
 async function checkActiveRide(){
@@ -422,6 +482,7 @@ async function checkActiveRide(){
   } catch(e){}
 }
  
+/* ---------- ЗАВЕРШЕНИЕ С ФОТО ---------- */
 function openFinish(){
   photoData = null; $('photoPrev').hidden = true; $('photoText').hidden = false; $('photoInput').value = ''; $('sendPhotoBtn').disabled = true;
   paintParkHint(); openM('finishModal');
@@ -456,45 +517,54 @@ async function sendFinish(){
   } catch(e){ $('sendPhotoBtn').disabled = false; toast('Не удалось отправить. Проверьте связь'); }
 }
  
-function openSupport() {
-  closeM('profileModal');
-  openM('supportModal');
-  showSupport('write');
-}
-function showSupport(tab) {
-  $('supportWrite').style.display = tab === 'write' ? 'block' : 'none';
-  $('supportHistory').style.display = tab === 'history' ? 'block' : 'none';
-  if (tab === 'history') loadMyTickets();
-}
-async function loadMyTickets() {
-  if (!user) return;
-  try {
-    const r = await fetch(API + '/api/support/' + user.username);
-    const tickets = await r.json();
-    const list = $('myTicketsList');
-    if (tickets.length === 0) { list.innerHTML = '<div class="sub" style="padding:10px;">У вас пока нет обращений</div>'; return; }
-    list.innerHTML = tickets.reverse().map(t => `
-      <div class="note" style="margin-bottom:10px;">
-        <div style="font-size:12px; color:var(--muted); margin-bottom:4px;">${t.time}</div>
-        <div>${t.message}</div>
-        ${t.reply ? `<div style="color:var(--green); margin-top:8px; border-left:2px solid var(--green); padding-left:8px;"><b>Ответ:</b> ${t.reply}</div>` : '<div style="color:var(--muted); font-size:12px; margin-top:6px;">Ожидает ответа...</div>'}
-      </div>
-    `).join('');
-  } catch(e) {}
-}
-async function sendSupport(){
-  const msg = $('supportMsg').value.trim(); if (!msg) return toast('Введите сообщение');
-  await post('/api/support', {username:user.username, message:msg});
-  $('supportMsg').value=''; toast('Отправлено'); showSupport('history');
-}
- 
+/* ---------- ПОПОЛНЕНИЕ / ПОДДЕРЖКА ---------- */
 async function confirmTopup(){
   const amount = +$('topupAmount').value;
   if (!amount || amount < 30) return toast('Сумма от 30 ₽');
   await post('/api/request-topup', {username:user.username, amount});
   closeM('topupModal'); closeM('profileModal'); $('topupAmount').value=''; toast('Заявка отправлена. Баланс обновится после проверки');
 }
+async function sendSupport(){
+  const msg = $('supportMsg').value.trim(); if (!msg) return toast('Введите сообщение');
+  await post('/api/support', {username:user.username, message:msg});
+  $('supportMsg').value=''; toast('Отправлено'); loadTickets();
+}
  
+/* ---------- ПРОЗВОН САМОКАТА ---------- */
+async function ringScooter(id){
+  id = id || (currentScooter && currentScooter.id); if (!id) return;
+  if (!user) { toast('Сначала войдите в аккаунт'); return openProfile(); }
+  const res = await post('/api/ring', {username:user.username, password:user.password, scooterId:id});
+  toast(res.error || 'Самокат звонит 10 секунд');
+}
+ 
+/* ---------- ОБРАЩЕНИЯ В ПОДДЕРЖКУ ---------- */
+const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+let tickets = [], notified = 0;
+function repliedCount(){ return tickets.filter(t => t.reply).length; }
+function markSeen(){ if (!user) return; localStorage.setItem('skyy_seen_' + user.username, repliedCount()); $('profBtn').classList.remove('dot'); }
+function renderTickets(){
+  $('tickets').innerHTML = tickets.length ? '<div class="sub">Ваши обращения</div>' + tickets.slice().reverse().map(t =>
+    '<div class="ticket"><small>' + esc(t.time) + '</small><div>' + esc(t.message) + '</div>' +
+    (t.reply ? '<div class="rp"><small>Ответ поддержки</small><div>' + esc(t.reply) + '</div></div>' : '<small>Ждёт ответа…</small>') + '</div>').join('') : '';
+}
+async function loadTickets(){
+  if (!user) return;
+  try {
+    tickets = await (await fetch(API + '/api/support/' + encodeURIComponent(user.username))).json();
+    renderTickets();
+    if ($('supportModal').classList.contains('active')) return markSeen();
+    const seen = +localStorage.getItem('skyy_seen_' + user.username) || 0, n = repliedCount();
+    $('profBtn').classList.toggle('dot', n > seen);
+    if (n > Math.max(seen, notified)) toast('Новый ответ поддержки'); notified = n;
+  } catch(e){}
+}
+async function openSupport(){
+  if (!user) { toast('Сначала войдите в аккаунт'); return openProfile(); }
+  closeM('profileModal'); openM('supportModal'); await loadTickets(); markSeen();
+}
+ 
+/* ---------- СВАЙПЫ ---------- */
 const LOCKED = ['rideModal'];
 document.querySelectorAll('.modal').forEach(m => {
   const mc = m.querySelector('.mc'), id = m.id;
@@ -519,8 +589,13 @@ document.querySelectorAll('.modal').forEach(m => {
   });
 })();
  
+setInterval(async () => {
+  if (!user) return; await refreshUser();
+  if ($('loggedIn').style.display === 'block') $('userBalance').textContent = user.balance + ' ₽';
+}, 5000);
 setInterval(loadScooters, 5000); setInterval(loadParkings, 60000);
-loadScooters(); loadParkings(); checkActiveRide(); placeFab();
+setInterval(loadTickets, 15000);
+loadScooters(); loadParkings(); checkActiveRide(); loadTickets(); placeFab();
 </script>
 </body>
 </html>
